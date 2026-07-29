@@ -31,7 +31,6 @@
     <style>
         body { background-color: #111111; color: white; -webkit-tap-highlight-color: transparent; }
         .app-card { background: #1f1f1f; border: 1px solid #333; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
-        /* Ocultar barra de scroll en tablas móviles */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -49,7 +48,7 @@
         </button>
     </header>
 
-    <!-- LOGIN SCREEN (Oculto por defecto para evitar parpadeos visuales en teléfonos) -->
+    <!-- LOGIN SCREEN -->
     <div id="login-screen" class="hidden min-h-screen flex-col items-center justify-center p-6">
         <div class="w-full max-w-sm app-card text-center py-10 shadow-2xl">
             <i class="fa-solid fa-scissors text-barber-gold text-4xl mb-4"></i>
@@ -98,9 +97,7 @@
                    class="w-full bg-barber-gray border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-barber-gold">
         </div>
 
-        <div id="admin-bookings-list" class="space-y-3 mb-8">
-            <!-- Las citas se generan aquí como tarjetas para móvil -->
-        </div>
+        <div id="admin-bookings-list" class="space-y-3 mb-8"></div>
 
         <!-- CONFIGURADOR DE HORARIOS -->
         <h2 class="text-lg font-serif mb-3 text-barber-gold border-b border-gray-800 pb-2 mt-8"><i class="fa-regular fa-clock mr-2"></i> Disponibilidad Semanal</h2>
@@ -148,12 +145,10 @@
             document.getElementById('admin-month-filter').value = currentMonth;
             document.getElementById('admin-week-month').value = currentMonth;
 
-            // Verificamos de inmediato si hay sesión iniciada
             if (currentUser && currentUser.email === ADMIN_EMAIL) {
                 showDashboard();
                 await loadDataAndRender();
             } else {
-                // Si no hay sesión, mostramos el login
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('login-screen').classList.add('flex');
             }
@@ -161,14 +156,17 @@
 
         window.loadDataAndRender = async function() {
             try {
-                const { data: settingsData } = await donatoSupabase.from('hipso_settings').select('value').eq('key', 'main_config').single();
+                // CORREGIDO A donato_settings
+                const { data: settingsData } = await donatoSupabase.from('donato_settings').select('value').eq('key', 'main_config').single();
                 if (settingsData && settingsData.value) config = settingsData.value;
 
-                const { data: bookingsData } = await donatoSupabase.from('hipso_bookings').select('*');
+                // CORREGIDO A donato_bookings
+                const { data: bookingsData } = await donatoSupabase.from('donato_bookings').select('*');
                 if (bookingsData) {
                     bookings = bookingsData.map(b => ({
                         id: b.id, date: b.date, time: b.time, clientName: b.client_name,
-                        clientPhone: b.client_phone, service: b.service, notes: b.notes, status: b.status
+                        clientEmail: b.client_email, clientPhone: b.client_phone, service: b.service, 
+                        notes: b.notes, status: b.status
                     }));
                 }
                 
@@ -223,7 +221,6 @@
                 return;
             }
 
-            // Ordenar por fecha (las más recientes primero)
             filtered.sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
 
             filtered.forEach(b => {
@@ -231,7 +228,6 @@
                 card.className = "bg-black border border-gray-800 rounded-xl p-4 relative";
                 
                 const fechaFormat = b.date.split('-').reverse().join('/');
-                const statusColor = b.status === 'Cancelada' ? 'text-danger' : 'text-emerald-400';
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
@@ -257,7 +253,8 @@
             if (confirm("¿Eliminar esta cita?")) {
                 bookings = bookings.filter(b => b.id !== id);
                 renderAdminBookingsTable();
-                await donatoSupabase.from('hipso_bookings').delete().eq('id', id);
+                // CORREGIDO A donato_bookings
+                await donatoSupabase.from('donato_bookings').delete().eq('id', id);
             }
         };
 
@@ -360,8 +357,9 @@
             const weekKey = `${monthVal}-W${weekVal}`;
             
             config.weekCustomSchedules[weekKey] = JSON.parse(JSON.stringify(currentEditingWeekState));
-            await donatoSupabase.from('hipso_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
-            alert(`Semana ${weekVal} guardada.`);
+            // CORREGIDO A donato_settings
+            await donatoSupabase.from('donato_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
+            alert(`Semana ${weekVal} guardada con éxito.`);
         };
     </script>
 </body>
