@@ -148,19 +148,30 @@
             if (currentUser && currentUser.email === ADMIN_EMAIL) {
                 showDashboard();
                 await loadDataAndRender();
+                initRealtimeNotifications();
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('login-screen').classList.add('flex');
             }
         });
 
+        // NOTIFICACIONES EN VIVO
+        function initRealtimeNotifications() {
+            donatoSupabase
+                .channel('admin-bookings-channel')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donato_bookings' }, payload => {
+                    const newB = payload.new;
+                    alert(`🔔 ¡NUEVA RESERVA!\nCliente: ${newB.client_name}\nFecha: ${newB.date} (${newB.time})\nServicio: ${newB.service}`);
+                    loadDataAndRender();
+                })
+                .subscribe();
+        }
+
         window.loadDataAndRender = async function() {
             try {
-                // CORREGIDO A donato_settings
                 const { data: settingsData } = await donatoSupabase.from('donato_settings').select('value').eq('key', 'main_config').single();
                 if (settingsData && settingsData.value) config = settingsData.value;
 
-                // CORREGIDO A donato_bookings
                 const { data: bookingsData } = await donatoSupabase.from('donato_bookings').select('*');
                 if (bookingsData) {
                     bookings = bookingsData.map(b => ({
@@ -185,6 +196,7 @@
                 localStorage.setItem('donato_app_user', JSON.stringify(currentUser));
                 showDashboard();
                 loadDataAndRender();
+                initRealtimeNotifications();
             } else {
                 alert("Clave incorrecta.");
             }
@@ -205,6 +217,30 @@
             document.getElementById('app-header').classList.remove('hidden');
             document.getElementById('dashboard-screen').classList.remove('hidden');
         }
+
+        // GENERADOR DE ARCHIVO PARA CALENDARIO DE IPHONE (ICS)
+        window.addToAppleCalendar = function(clientName, date, time, service, notes, phone) {
+            const startDate = date.replace(/-/g, '') + 'T' + time.replace(':', '') + '00';
+            const icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'BEGIN:VEVENT',
+                `SUMMARY:Cita Barbería: ${clientName} (${service})`,
+                `DESCRIPTION:Cliente: ${clientName}\\nTeléfono: ${phone}\\nServicio: ${service}\\nNotas: ${notes || 'Ninguna'}`,
+                `DTSTART:${startDate}`,
+                'LOCATION:Río Lontué 624, Nonguén, Concepción, Chile',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\n');
+
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.setAttribute('download', `Cita-${clientName.replace(/\s+/g, '_')}.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
 
         /* ----- CITAS MÓVIL ----- */
         window.renderAdminBookingsTable = function() {
@@ -235,9 +271,14 @@
                             <h4 class="font-bold text-white text-base">${b.clientName}</h4>
                             <p class="text-barber-gold font-mono text-sm">${fechaFormat} a las ${b.time}</p>
                         </div>
-                        <button onclick="window.deleteBooking('${b.id}')" class="text-gray-600 hover:text-danger p-2">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="window.addToAppleCalendar('${b.clientName}', '${b.date}', '${b.time}', '${b.service || 'Corte'}', '${b.notes || ''}', '${b.clientPhone}')" title="Añadir al Calendario" class="bg-barber-gold/20 text-barber-gold p-2 rounded-lg text-xs">
+                                <i class="fa-solid fa-calendar-plus"></i>
+                            </button>
+                            <button onclick="window.deleteBooking('${b.id}')" class="text-gray-600 hover:text-danger p-2">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="text-xs text-gray-400 space-y-1 mt-3">
                         <p><i class="fa-solid fa-phone w-4 text-center"></i> <a href="https://wa.me/${b.clientPhone.replace(/\s+/g, '').replace('+', '')}" target="_blank" class="text-white underline">${b.clientPhone}</a></p>
@@ -253,7 +294,6 @@
             if (confirm("¿Eliminar esta cita?")) {
                 bookings = bookings.filter(b => b.id !== id);
                 renderAdminBookingsTable();
-                // CORREGIDO A donato_bookings
                 await donatoSupabase.from('donato_bookings').delete().eq('id', id);
             }
         };
@@ -357,7 +397,6 @@
             const weekKey = `${monthVal}-W${weekVal}`;
             
             config.weekCustomSchedules[weekKey] = JSON.parse(JSON.stringify(currentEditingWeekState));
-            // CORREGIDO A donato_settings
             await donatoSupabase.from('donato_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
             alert(`Semana ${weekVal} guardada con éxito.`);
         };
