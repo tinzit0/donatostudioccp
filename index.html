@@ -78,26 +78,35 @@
 <body class="bg-barber-dark text-gray-200 font-sans antialiased scroll-smooth overflow-x-hidden">
 
     <!-- NAVBAR NAVEGABLE -->
-    <nav id="navbar" class="fixed top-0 w-full z-40 bg-black/90 backdrop-blur-md border-b border-gray-800 py-3 px-6 flex justify-between items-center">
-        <a href="#" onclick="window.showPublicLanding()" class="font-serif text-xl sm:text-2xl text-white tracking-wider">Donatostudio</a>
+    <nav id="navbar" class="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-md border-b border-gray-800 py-4 px-6 flex justify-between items-center">
+        <a href="#" onclick="window.showPublicLanding()" class="font-serif text-2xl text-white tracking-widest uppercase">Donatostudio</a>
         
-        <div class="flex items-center gap-6 text-xs sm:text-sm">
-            <div id="public-nav-links" class="hidden md:flex gap-6 text-gray-300">
-                <a href="#experiencia" class="hover:text-barber-gold transition-colors">Experiencia</a>
-                <a href="#servicios" class="hover:text-barber-gold transition-colors">Servicios</a>
-                <a href="#cortes" class="hover:text-barber-gold transition-colors">Trabajos</a>
-                <a href="#resenas" class="hover:text-barber-gold transition-colors">Reseñas</a>
-                <a href="#agendar" class="hover:text-barber-gold transition-colors">Reservar Hora</a>
-                <a href="#ubicacion" class="hover:text-barber-gold transition-colors">Ubicación</a>
-            </div>
-            <div id="auth-nav-slot">
-                <button onclick="window.handleAdminNavClick()" class="text-barber-gold hover:text-white transition-colors flex items-center gap-2 font-semibold">
-                    <i class="fa-solid fa-user-gear"></i>
-                    <span>Panel Admin</span>
-                </button>
-            </div>
+        <!-- Menú PC -->
+        <div id="public-nav-links" class="hidden lg:flex gap-8 text-xs font-semibold tracking-widest uppercase text-gray-300">
+            <a href="#experiencia" class="hover:text-barber-gold transition-colors">Experiencia</a>
+            <a href="#servicios" class="hover:text-barber-gold transition-colors">Servicios</a>
+            <a href="#cortes" class="hover:text-barber-gold transition-colors">Trabajos</a>
+            <a href="#resenas" class="hover:text-barber-gold transition-colors">Reseñas</a>
+            <a href="#agendar" class="hover:text-barber-gold transition-colors text-barber-gold">Reservar Hora</a>
         </div>
+
+        <!-- Botón Menú Móvil (Hamburguesa) -->
+        <button id="mobile-menu-btn" class="lg:hidden text-white text-2xl focus:outline-none">
+            <i class="fa-solid fa-bars"></i>
+        </button>
     </nav>
+
+    <!-- Overlay Menú Móvil -->
+    <div id="mobile-menu" class="fixed inset-0 bg-black/95 z-40 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-300 pt-16">
+        <div class="flex flex-col gap-8 text-center text-lg font-serif tracking-widest text-white">
+            <a href="#experiencia" class="mobile-link hover:text-barber-gold transition-colors">Experiencia</a>
+            <a href="#servicios" class="mobile-link hover:text-barber-gold transition-colors">Servicios</a>
+            <a href="#cortes" class="mobile-link hover:text-barber-gold transition-colors">Trabajos</a>
+            <a href="#resenas" class="mobile-link hover:text-barber-gold transition-colors">Reseñas</a>
+            <a href="#agendar" class="mobile-link hover:text-barber-gold transition-colors text-barber-gold font-bold">Reservar Hora</a>
+            <a href="#ubicacion" class="mobile-link hover:text-barber-gold transition-colors">Ubicación</a>
+        </div>
+    </div>
 
     <!-- VISTA PÚBLICA PRINCIPAL -->
     <div id="landing-container">
@@ -446,6 +455,12 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Botón Admin Oculto en el Footer -->
+            <div class="mt-12 pt-8 border-t border-gray-900 flex flex-col items-center justify-center gap-4">
+                <div id="auth-nav-slot"></div>
+                <p class="text-[10px] text-gray-700 uppercase tracking-widest">© 2026 Donatostudio Barbería</p>
+            </div>
         </footer>
     </div>
 
@@ -689,6 +704,33 @@
         let currentlyEditingWeekKey = null;
 
         window.addEventListener('DOMContentLoaded', async () => {
+            // Lógica del menú móvil
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileLinks = document.querySelectorAll('.mobile-link');
+
+            mobileBtn.addEventListener('click', () => {
+                const isHidden = mobileMenu.classList.contains('hidden');
+                if (isHidden) {
+                    mobileMenu.classList.remove('hidden');
+                    setTimeout(() => mobileMenu.classList.remove('opacity-0'), 10);
+                    mobileBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                } else {
+                    mobileMenu.classList.add('opacity-0');
+                    setTimeout(() => mobileMenu.classList.add('hidden'), 300);
+                    mobileBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+                }
+            });
+
+            mobileLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.add('opacity-0');
+                    setTimeout(() => mobileMenu.classList.add('hidden'), 300);
+                    mobileBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+                });
+            });
+
+            // Carga de base de datos
             await loadDataFromSupabase();
 
             const today = new Date().toISOString().split('T')[0];
@@ -699,8 +741,13 @@
                 selectedClientDate = today;
                 document.getElementById('summary-date').innerText = formatDateReadable(today);
 
-                dateInput.addEventListener('change', (e) => {
+                // Refresca la base de datos cada vez que un cliente selecciona un nuevo día en su teléfono
+                dateInput.addEventListener('change', async (e) => {
                     const chosenDate = e.target.value;
+                    
+                    // Asegurar lectura fresca de base de datos para ver los cambios de admin al instante
+                    await loadDataFromSupabase(); 
+
                     if (isDayFullyBookedOrClosed(chosenDate)) {
                         alert("Este día no tiene disponibilidad o está completo. Selecciona otra fecha.");
                         dateInput.value = selectedClientDate;
@@ -726,10 +773,11 @@
 
         async function loadDataFromSupabase() {
             try {
-                const { data: settingsData } = await donatoSupabase.from('donato_settings').select('value').eq('key', 'main_config').single();
+                const { data: settingsData, error: settingsError } = await donatoSupabase.from('donato_settings').select('value').eq('key', 'main_config').single();
                 if (settingsData && settingsData.value) config = settingsData.value;
+                if (settingsError) console.warn("Supabase Config (Aviso):", settingsError);
 
-                const { data: bookingsData } = await donatoSupabase.from('donato_bookings').select('*');
+                const { data: bookingsData, error: bookingsError } = await donatoSupabase.from('donato_bookings').select('*');
                 if (bookingsData) {
                     bookings = bookingsData.map(b => ({
                         id: b.id, date: b.date, time: b.time, clientName: b.client_name,
@@ -738,25 +786,34 @@
                         createdAt: b.created_at
                     }));
                 }
+                if (bookingsError) console.warn("Supabase Bookings (Aviso):", bookingsError);
             } catch (err) {
-                console.warn("Cargando modo local:", err);
+                console.warn("Cargando modo local / Error Supabase:", err);
             }
         }
 
         async function saveState() {
             try {
-                await donatoSupabase.from('donato_settings').upsert({ key: 'main_config', value: config });
+                const { error } = await donatoSupabase.from('donato_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
+                if (error) {
+                    console.error("Error guardando estado en Supabase:", error);
+                    alert("Aviso: Revisa las políticas de RLS en Supabase, el guardado fue denegado.");
+                }
             } catch (err) { console.error("Error guardando estado:", err); }
         }
 
         async function saveBookingToSupabase(b) {
             try {
-                await donatoSupabase.from('donato_bookings').upsert({
+                const { error } = await donatoSupabase.from('donato_bookings').upsert({
                     id: b.id, date: b.date, time: b.time, client_name: b.clientName,
                     client_email: b.clientEmail, client_phone: b.clientPhone,
                     service: b.service, notes: b.notes, status: b.status,
                     created_at: b.createdAt
-                });
+                }, { onConflict: 'id' });
+                if (error) {
+                    console.error("Error guardando reserva en Supabase:", error);
+                    alert("Aviso: Hubo un problema al guardar la reserva en la base de datos.");
+                }
             } catch (err) { console.error("Error guardando reserva:", err); }
         }
 
@@ -791,14 +848,14 @@
             const navSlot = document.getElementById('auth-nav-slot');
             if (currentUser && currentUser.email === ADMIN_EMAIL) {
                 navSlot.innerHTML = `
-                    <button onclick="window.showAdminPanel()" class="text-barber-gold font-semibold flex items-center gap-1.5">
-                        <i class="fa-solid fa-user-check"></i> Panel Admin
+                    <button onclick="window.showAdminPanel()" class="text-barber-gold font-semibold flex items-center gap-1.5 text-xs hover:text-white transition">
+                        <i class="fa-solid fa-user-check"></i> Panel de Administración
                     </button>
                 `;
             } else {
                 navSlot.innerHTML = `
-                    <button onclick="window.handleAdminNavClick()" class="text-barber-gold hover:text-white transition-colors flex items-center gap-2 font-semibold">
-                        <i class="fa-solid fa-user-gear"></i> Panel Admin
+                    <button onclick="window.handleAdminNavClick()" class="text-gray-600 hover:text-barber-gold transition-colors flex items-center gap-2 font-semibold text-xs">
+                        <i class="fa-solid fa-user-gear"></i> Acceso Admin
                     </button>
                 `;
             }
@@ -813,8 +870,6 @@
             document.getElementById('landing-container').classList.remove('hidden');
             document.getElementById('admin-container').classList.add('hidden');
             document.getElementById('login-container').classList.add('hidden');
-            const pubLinks = document.getElementById('public-nav-links');
-            if (pubLinks) pubLinks.classList.remove('hidden');
             window.renderClientSlots();
         };
 
@@ -822,8 +877,6 @@
             document.getElementById('landing-container').classList.add('hidden');
             document.getElementById('admin-container').classList.add('hidden');
             document.getElementById('login-container').classList.remove('hidden');
-            const pubLinks = document.getElementById('public-nav-links');
-            if (pubLinks) pubLinks.classList.add('hidden');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -832,8 +885,6 @@
             document.getElementById('landing-container').classList.add('hidden');
             document.getElementById('login-container').classList.add('hidden');
             document.getElementById('admin-container').classList.remove('hidden');
-            const pubLinks = document.getElementById('public-nav-links');
-            if (pubLinks) pubLinks.classList.add('hidden');
             renderAdminDashboard();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
@@ -988,7 +1039,6 @@
             const weekKey = `${monthVal}-W${weekVal}`;
             if (!config.weekCustomSchedules) config.weekCustomSchedules = {};
 
-            // Solo recarga los datos de la base de datos si cambiamos de semana explícitamente
             if (currentlyEditingWeekKey !== weekKey) {
                 let savedWeekData = config.weekCustomSchedules[weekKey] || {};
                 currentEditingWeekState = JSON.parse(JSON.stringify(savedWeekData));
@@ -1055,8 +1105,6 @@
             if (!currentEditingWeekState[dateStr]) {
                 currentEditingWeekState[dateStr] = { active: true, slots: [] };
             }
-            
-            // Activa automáticamente el día si estaba inactivo al hacer clic en + Horario
             currentEditingWeekState[dateStr].active = true;
 
             const time = prompt(`Nuevo horario para ${dateStr} (ej: 11:00):`);
@@ -1085,7 +1133,7 @@
             config.weekCustomSchedules[weekKey] = JSON.parse(JSON.stringify(currentEditingWeekState));
             await saveState();
             window.renderClientSlots();
-            alert(`Cambios guardados con éxito para la Semana ${weekVal}.`);
+            alert(`Cambios guardados en la nube con éxito para la Semana ${weekVal}.`);
         };
 
         /* DÍAS ESPECÍFICOS Y BLOQUEO DE VACACIONES */
@@ -1218,7 +1266,6 @@
                 delete config.weekCustomSchedules[weekKey];
                 await saveState();
                 
-                // Forzamos a recargar desde la nube para el frontend reseteado
                 currentlyEditingWeekKey = null; 
                 window.loadAndRenderWeeklySchedule();
                 window.renderClientSlots();
