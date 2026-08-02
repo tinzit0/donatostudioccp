@@ -1155,13 +1155,12 @@
             };
             const { error } = await supabaseClient.from('donato_bookings').insert(payload);
             if (error) {
-                console.error("Error insertando reserva:", error);
-                const isConflict = error.code === '23505' || (error.message && error.message.toLowerCase().includes('duplicate'));
-                return { success: false, conflict: isConflict, error };
+                console.error("Error detallado de Supabase:", error);
+                return { success: false, conflict: false, error };
             }
             return { success: true, conflict: false, error: null };
         } catch (err) { 
-            console.error("Excepción insertando reserva:", err);
+            console.error("Excepción en insert:", err);
             return { success: false, conflict: false, error: err }; 
         }
     }
@@ -1457,8 +1456,12 @@
         submitBtn.disabled = false; submitBtn.innerHTML = originalText;
 
         if (!result.success) {
-            showToast("No se pudo completar la reserva. Revisa la consola.", "error");
-            await loadDataFromSupabase(false); renderAllViews(); return;
+            const errorMsg = result.error?.message || result.error?.details || "Error desconocido";
+            showToast("Error: " + errorMsg, "error");
+            console.error("Fallo de reserva Supabase:", result.error);
+            await loadDataFromSupabase(false); 
+            renderAllViews(); 
+            return;
         }
 
         bookings.push(newBooking); removeSelectedImage(); renderAllViews();
