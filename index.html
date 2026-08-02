@@ -679,7 +679,7 @@
     </div>
 </div>
 
-<!-- PANEL ADMIN COMPLETO -->
+<!-- PANEL ADMIN -->
 <div id="admin-container" class="hidden relative z-30 min-h-screen pt-48 md:pt-52 pb-16 px-3 md:px-8 max-w-7xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-white/10 gap-3">
         <div>
@@ -852,7 +852,7 @@
         const templateId = type === 'reserva' ? EMAILJS_TEMP_BOOK : EMAILJS_TEMP_CANCEL;
         const templateParams = {
             cliente_nombre: booking.clientName,
-            cliente_contacto: booking.clientEmail, // Se envía al correo ingresado por el cliente
+            cliente_contacto: booking.clientEmail,
             cliente_email: booking.clientEmail,
             cliente_telefono: booking.clientPhone,
             fecha: formatDateReadable(booking.date),
@@ -914,7 +914,6 @@
         setTimeout(() => { if (loader && loader.parentNode) loader.remove(); }, 600);
     }
 
-    /* FIX ERROR 2: PROTECCIÓN DE CAMPOS ACTIVOS EN PANEL ADMIN */
     function isEditingProtectedAdminArea() {
         const active = document.activeElement;
         if (!active) return false;
@@ -938,7 +937,6 @@
         updateAuthUI();
     }
 
-    /* MIS CITAS Y CANCELACIÓN DIRECTA */
     function openClientManageModal() {
         const modal = document.getElementById('client-manage-modal');
         if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
@@ -1017,7 +1015,6 @@
         document.getElementById('image-preview-container').classList.add('hidden');
     }
 
-    /* STORAGE UTIL */
     async function uploadFileToStorage(file, folder = 'references') {
         try {
             const fileExt = file.name.split('.').pop();
@@ -1077,7 +1074,6 @@
         });
     }
 
-    /* LOAD / SAVE SUPABASE DATA EXACT MATCH WITH TABLE SCHEMA */
     async function loadDataFromSupabase(showLoading = false) {
         if (isLoadingData) return;
         isLoadingData = true;
@@ -1137,12 +1133,10 @@
                 created_at: b.createdAt || new Date().toISOString()
             };
             const { error } = await supabaseClient.from('donato_bookings').upsert(payload, { onConflict: 'id' });
-            if (error) console.error("Error al actualizar en Supabase:", error);
             return !error;
         } catch (err) { return false; }
     }
 
-    /* INSERCIÓN ATÓMICA CON CAMPOS EXACTOS DE DONATO_BOOKINGS */
     async function insertNewBookingAtomic(b) {
         try {
             const payload = {
@@ -1161,13 +1155,13 @@
             };
             const { error } = await supabaseClient.from('donato_bookings').insert(payload);
             if (error) {
-                console.error("Error al insertar reserva en donato_bookings:", error);
+                console.error("Error insertando reserva:", error);
                 const isConflict = error.code === '23505' || (error.message && error.message.toLowerCase().includes('duplicate'));
                 return { success: false, conflict: isConflict, error };
             }
             return { success: true, conflict: false, error: null };
         } catch (err) { 
-            console.error("Excepción al reservar:", err);
+            console.error("Excepción insertando reserva:", err);
             return { success: false, conflict: false, error: err }; 
         }
     }
@@ -1218,8 +1212,9 @@
             if (mobileLabel) mobileLabel.innerText = "Panel Admin (Conectado)";
         } else {
             navSlot.innerHTML = `
-                <button onclick="handleAdminNavClick()" id="nav-admin-toggle" class="nav-link text-accent flex items-center gap-1.5">
-                    <i class="fa-solid fa-user-gear text-xs"></i><span>Panel Admin</span>
+                <button onclick="handleAdminNavClick()" id="nav-admin-toggle" class="nav-link text-accent hover:text-bone transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-gear text-xs"></i>
+                    <span id="nav-admin-label">Panel Admin</span>
                 </button>`;
             if (mobileLabel) mobileLabel.innerText = "Panel Admin";
         }
@@ -1269,10 +1264,9 @@
         return { active: false, slots: [] };
     }
 
-    /* FILTRAR BLOQUES Y EVITAR DÍAS/HORAS PASADAS */
     function getRemainingSlotsForDate(dateStr) {
         const todayStr = getLocalDateString(new Date());
-        if (dateStr < todayStr) return []; // Día pasado
+        if (dateStr < todayStr) return [];
 
         const sched = getEffectiveScheduleForDate(dateStr);
         if (sched.blocked || !sched.active || !sched.slots) return [];
@@ -1442,9 +1436,7 @@
         const serviceVal = document.getElementById('client-service') ? document.getElementById('client-service').value : 'Corte de Cabello';
         const instagramInput = document.getElementById('client-instagram') ? document.getElementById('client-instagram').value.trim() : '';
         const baseNotes = document.getElementById('client-notes').value || '';
-        
-        // Formatear notas para guardar Instagram de forma limpia sin requerir alterar el schema
-        const fullNotes = (instagramInput ? `IG: ${instagramInput}` : '') + (baseNotes ? ` | ${baseNotes}` : '');
+        const fullNotes = (instagramInput ? `IG: ${instagramInput} | ` : '') + baseNotes;
 
         const newBooking = {
             id: 'DON-' + Date.now().toString().slice(-5) + '-' + Math.random().toString(36).slice(2, 6),
@@ -1465,14 +1457,13 @@
         submitBtn.disabled = false; submitBtn.innerHTML = originalText;
 
         if (!result.success) {
-            showToast("No se pudo completar la reserva. Elige otro horario.", "error");
+            showToast("No se pudo completar la reserva. Revisa la consola.", "error");
             await loadDataFromSupabase(false); renderAllViews(); return;
         }
 
         bookings.push(newBooking); removeSelectedImage(); renderAllViews();
         sendNotificationEmail('reserva', newBooking);
 
-        // Generar botón de Google Calendar
         const calButtons = document.getElementById('calendar-add-buttons');
         if (calButtons) {
             const gLink = getGoogleCalendarUrl(newBooking);
@@ -1494,7 +1485,6 @@
         removeSelectedImage(); selectedClientSlot = ""; renderClientSlots(); validateBookingForm();
     }
 
-    /* ADMIN CALENDAR & DAY EDITOR */
     function renderAdminDashboard() { renderAdminCalendar(); renderAdminDayEditor(); renderBlockedRangesList(); renderAdminBookingsTable(); }
     function adminCalNavigate(delta) { adminCalendarViewDate.setMonth(adminCalendarViewDate.getMonth() + delta); renderAdminCalendar(); }
 
@@ -1684,7 +1674,6 @@
         `).join('');
     }
 
-    /* GOOGLE CALENDAR LINK GENERATOR */
     function getGoogleCalendarUrl(b) {
         const title = encodeURIComponent(`Cita Barbería: ${b.clientName}`);
         const details = encodeURIComponent(`Notas/Servicio: ${b.notes || b.service || 'Sin notas'}\nEmail: ${b.clientEmail}\nTeléfono: ${b.clientPhone}`);
@@ -1773,7 +1762,6 @@
         });
     }
 
-    /* LIGHTBOX & ZOOM */
     function openLightbox(imgUrl) {
         const modal = document.getElementById('lightbox-modal');
         const img = document.getElementById('lightbox-img');
@@ -1810,7 +1798,6 @@
         menu.classList.toggle('hidden'); menu.classList.toggle('flex');
     }
 
-    /* NAVBAR COMPORTAMIENTO INTELIGENTE AL DESLIZAR */
     let lastScrollTop = 0;
     let scrollTimeout = null;
 
@@ -1835,7 +1822,6 @@
         }, 350);
     });
 
-    /* INITIALIZATION */
     window.addEventListener('DOMContentLoaded', async () => {
         document.documentElement.classList.add('page-ready');
         const safetyTimer = setTimeout(hideLoadingScreen, 1800);
@@ -1849,7 +1835,6 @@
 
         updateAuthUI(); renderAllViews();
 
-        /* POLLING BACKUP & REALTIME */
         setInterval(async () => {
             try {
                 if (!isEditingProtectedAdminArea()) {
