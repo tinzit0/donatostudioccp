@@ -499,12 +499,12 @@
                                              class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
                                   </div>
                                   <div>
-                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Correo Electrónico (Para recibir la confirmación)</label>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-sans">Correo Electrónico (Para recibir la confirmación)</label>
                                       <input type="email" id="client-email" required placeholder="tu_correo@ejemplo.com"
                                              class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
                                   </div>
                                   <div>
-                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Usuario de Instagram (Opcional)</label>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-sans">Usuario de Instagram (Opcional)</label>
                                       <input type="text" id="client-instagram" placeholder="@tu_instagram"
                                              class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
                                   </div>
@@ -610,7 +610,7 @@
             </h3>
             <button onclick="closeClientManageModal()" class="text-muted hover:text-bone text-lg">×</button>
         </div>
-        <p class="text-xs text-muted">Ingresa tu correo, usuario de Instagram o teléfono para ver o cancelar tus citas agendadas.</p>
+        <p class="text-xs text-muted">Ingresa tu correo, usuario de Instagram o teléfono con el que reservaste para ver o cancelar tus citas.</p>
         <form onsubmit="searchClientBookings(event)" class="space-y-3">
             <div>
                 <input type="text" id="client-search-input" required placeholder="Ej: correo@ejemplo.com, @instagram o +56912345678"
@@ -737,7 +737,7 @@
                         <tr>
                             <th class="pb-2 w-1/5">Fecha/Hora</th>
                             <th class="pb-2 w-1/4">Cliente / Notas</th>
-                            <th class="pb-2 w-1/4">Email / Instagram / Tel.</th>
+                            <th class="pb-2 w-1/4">Email / Teléfono</th>
                             <th class="pb-2 w-1/6">Estado</th>
                             <th class="pb-2 text-right">Opciones</th>
                         </tr>
@@ -854,7 +854,6 @@
             cliente_nombre: booking.clientName,
             cliente_contacto: booking.clientEmail, // Se envía al correo ingresado por el cliente
             cliente_email: booking.clientEmail,
-            cliente_instagram: booking.clientInstagram || '--',
             cliente_telefono: booking.clientPhone,
             fecha: formatDateReadable(booking.date),
             hora: booking.time,
@@ -958,9 +957,9 @@
 
         const userBookings = bookings.filter(b => {
             const emailMatch = b.clientEmail && b.clientEmail.toLowerCase().includes(inputVal);
-            const igMatch = b.clientInstagram && b.clientInstagram.toLowerCase().replace('@', '').includes(inputVal);
+            const notesMatch = b.notes && b.notes.toLowerCase().includes(inputVal);
             const phoneMatch = b.clientPhone && b.clientPhone.toLowerCase().includes(inputVal);
-            return (emailMatch || igMatch || phoneMatch) && b.status !== 'Cancelada';
+            return (emailMatch || notesMatch || phoneMatch) && b.status !== 'Cancelada';
         });
 
         if (userBookings.length === 0) {
@@ -986,7 +985,7 @@
     }
 
     function cancelClientBooking(id) {
-        showConfirm("¿Deseas cancelar tu cita? Se liberará el horario para otros clientes y te enviaremos una notificación.", async () => {
+        showConfirm("¿Deseas cancelar tu cita? Se liberará el horario para otros clientes.", async () => {
             const item = bookings.find(b => b.id === id);
             if (item) {
                 item.status = 'Cancelada';
@@ -1078,7 +1077,7 @@
         });
     }
 
-    /* LOAD / SAVE SUPABASE DATA (FIX ERROR 5) */
+    /* LOAD / SAVE SUPABASE DATA EXACT MATCH WITH TABLE SCHEMA */
     async function loadDataFromSupabase(showLoading = false) {
         if (isLoadingData) return;
         isLoadingData = true;
@@ -1100,8 +1099,7 @@
                 bookings = bookingsData.map(b => ({
                     id: b.id, date: b.date, time: b.time,
                     clientName: b.client_name, clientEmail: b.client_email, clientPhone: b.client_phone,
-                    clientInstagram: b.client_instagram || '',
-                    service: b.service || 'Corte de Cabello', notes: b.notes, imageUrl: b.image_url || null,
+                    service: b.service || 'Corte de Cabello', notes: b.notes || '', imageUrl: b.image_url || null,
                     paymentReceiptUrl: b.payment_receipt_url || null,
                     status: b.status || 'Confirmada', createdAt: b.created_at
                 }));
@@ -1125,35 +1123,53 @@
     async function saveBookingToSupabase(b) {
         try {
             const payload = {
-                id: b.id, date: b.date, time: b.time,
-                client_name: b.clientName, client_email: b.clientEmail, client_phone: b.clientPhone,
-                client_instagram: b.clientInstagram || '',
-                service: b.service || 'Corte de Cabello', notes: b.notes || '',
-                status: b.status || 'Confirmada', created_at: b.createdAt || new Date().toISOString()
+                id: b.id,
+                date: b.date,
+                time: b.time,
+                client_name: b.clientName,
+                client_email: b.clientEmail,
+                client_phone: b.clientPhone,
+                service: b.service || 'Corte de Cabello',
+                notes: b.notes || '',
+                image_url: b.imageUrl || null,
+                payment_receipt_url: b.paymentReceiptUrl || null,
+                status: b.status || 'Confirmada',
+                created_at: b.createdAt || new Date().toISOString()
             };
             const { error } = await supabaseClient.from('donato_bookings').upsert(payload, { onConflict: 'id' });
+            if (error) console.error("Error al actualizar en Supabase:", error);
             return !error;
         } catch (err) { return false; }
     }
 
-    /* INSERCIÓN ATÓMICA DE CITA (FIX ERROR 5) */
+    /* INSERCIÓN ATÓMICA CON CAMPOS EXACTOS DE DONATO_BOOKINGS */
     async function insertNewBookingAtomic(b) {
         try {
             const payload = {
-                id: b.id, date: b.date, time: b.time,
-                client_name: b.clientName, client_email: b.clientEmail, client_phone: b.clientPhone,
-                client_instagram: b.clientInstagram || '',
-                service: b.service || 'Corte de Cabello', notes: b.notes || '',
-                status: b.status || 'Confirmada', created_at: b.createdAt || new Date().toISOString()
+                id: b.id,
+                date: b.date,
+                time: b.time,
+                client_name: b.clientName,
+                client_email: b.clientEmail,
+                client_phone: b.clientPhone,
+                service: b.service || 'Corte de Cabello',
+                notes: b.notes || '',
+                image_url: b.imageUrl || null,
+                payment_receipt_url: b.paymentReceiptUrl || null,
+                status: b.status || 'Confirmada',
+                created_at: b.createdAt || new Date().toISOString()
             };
             const { error } = await supabaseClient.from('donato_bookings').insert(payload);
             if (error) {
-                console.error("Error insertando en Supabase:", error);
+                console.error("Error al insertar reserva en donato_bookings:", error);
                 const isConflict = error.code === '23505' || (error.message && error.message.toLowerCase().includes('duplicate'));
                 return { success: false, conflict: isConflict, error };
             }
             return { success: true, conflict: false, error: null };
-        } catch (err) { return { success: false, conflict: false, error: err }; }
+        } catch (err) { 
+            console.error("Excepción al reservar:", err);
+            return { success: false, conflict: false, error: err }; 
+        }
     }
 
     async function deleteBookingFromSupabase(id) {
@@ -1253,7 +1269,7 @@
         return { active: false, slots: [] };
     }
 
-    /* FILTRAR BLOQUES Y EVITAR DÍAS/HORAS PASADAS (FIX ERROR 1) */
+    /* FILTRAR BLOQUES Y EVITAR DÍAS/HORAS PASADAS */
     function getRemainingSlotsForDate(dateStr) {
         const todayStr = getLocalDateString(new Date());
         if (dateStr < todayStr) return []; // Día pasado
@@ -1424,19 +1440,25 @@
         }
 
         const serviceVal = document.getElementById('client-service') ? document.getElementById('client-service').value : 'Corte de Cabello';
-        const instagramVal = document.getElementById('client-instagram') ? document.getElementById('client-instagram').value.trim() : '';
+        const instagramInput = document.getElementById('client-instagram') ? document.getElementById('client-instagram').value.trim() : '';
+        const baseNotes = document.getElementById('client-notes').value || '';
+        
+        // Formatear notas para guardar Instagram de forma limpia sin requerir alterar el schema
+        const fullNotes = (instagramInput ? `IG: ${instagramInput}` : '') + (baseNotes ? ` | ${baseNotes}` : '');
 
         const newBooking = {
             id: 'DON-' + Date.now().toString().slice(-5) + '-' + Math.random().toString(36).slice(2, 6),
-            date: selectedClientDate, time: selectedClientSlot,
+            date: selectedClientDate, 
+            time: selectedClientSlot,
             clientName: document.getElementById('client-name').value,
             clientEmail: document.getElementById('client-email').value,
             clientPhone: document.getElementById('client-phone').value,
-            clientInstagram: instagramVal,
             service: serviceVal,
-            notes: document.getElementById('client-notes').value || '',
-            imageUrl: uploadedImageUrl, paymentReceiptUrl: null,
-            status: 'Confirmada', createdAt: new Date().toISOString()
+            notes: fullNotes,
+            imageUrl: uploadedImageUrl, 
+            paymentReceiptUrl: null,
+            status: 'Confirmada', 
+            createdAt: new Date().toISOString()
         };
 
         const result = await insertNewBookingAtomic(newBooking);
@@ -1581,7 +1603,6 @@
         const timeVal = document.getElementById('new-admin-slot-input').value;
         if (!timeVal) return;
 
-        // Validar hora pasada para el día de hoy (Fix Error 1)
         const todayStr = getLocalDateString(new Date());
         if (dateStr === todayStr) {
             const now = new Date();
@@ -1666,7 +1687,7 @@
     /* GOOGLE CALENDAR LINK GENERATOR */
     function getGoogleCalendarUrl(b) {
         const title = encodeURIComponent(`Cita Barbería: ${b.clientName}`);
-        const details = encodeURIComponent(`Notas/Servicio: ${b.notes || b.service || 'Sin notas'}\nEmail: ${b.clientEmail}\nInstagram: ${b.clientInstagram || '--'}\nTeléfono: ${b.clientPhone}`);
+        const details = encodeURIComponent(`Notas/Servicio: ${b.notes || b.service || 'Sin notas'}\nEmail: ${b.clientEmail}\nTeléfono: ${b.clientPhone}`);
         const location = encodeURIComponent("Río Lontué 624, Nonguén, Concepción, Chile");
         const fechaLimpia = b.date.replace(/-/g, '');
         const horaLimpia = b.time.replace(':', '') + '00';
@@ -1676,14 +1697,6 @@
 
     function clearMonthFilter() {
         document.getElementById('admin-month-filter').value = ""; renderAdminBookingsTable();
-    }
-
-    function formatInstagramHandle(ig) {
-        if (!ig) return '--';
-        const cleanHandle = ig.trim().replace(/^@+/, '');
-        return `<a href="https://instagram.com/${cleanHandle}" target="_blank" class="text-accent hover:underline flex items-center gap-1 font-semibold">
-            <i class="fa-brands fa-instagram text-[10px]"></i> @${cleanHandle}
-        </a>`;
     }
 
     function renderAdminBookingsTable() {
@@ -1723,7 +1736,6 @@
                 </td>
                 <td class="py-3 text-[10px] align-top">
                     <div class="font-mono text-white font-semibold">${b.clientEmail}</div>
-                    <div class="font-mono text-accent font-semibold mt-0.5">${formatInstagramHandle(b.clientInstagram)}</div>
                     <div class="text-muted mt-0.5">${b.clientPhone}</div>
                 </td>
                 <td class="py-3 align-top">${statusBadge}</td>
@@ -1798,7 +1810,7 @@
         menu.classList.toggle('hidden'); menu.classList.toggle('flex');
     }
 
-    /* NAVBAR COMPORTAMIENTO INTELIGENTE AL DESLIZAR (FIX ERROR 4) */
+    /* NAVBAR COMPORTAMIENTO INTELIGENTE AL DESLIZAR */
     let lastScrollTop = 0;
     let scrollTimeout = null;
 
@@ -1810,16 +1822,13 @@
         if (scrollTop > 50) navbar.classList.add('scrolled');
         else navbar.classList.remove('scrolled');
 
-        // Ocultar al bajar
         if (scrollTop > lastScrollTop && scrollTop > 120) {
             navbar.style.transform = 'translateY(-100%)';
         } else {
-            // Mostrar al subir
             navbar.style.transform = 'translateY(0)';
         }
         lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
 
-        // Mostrar al hacer pausa
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             navbar.style.transform = 'translateY(0)';
@@ -1840,7 +1849,7 @@
 
         updateAuthUI(); renderAllViews();
 
-        /* POLLING BACKUP & REALTIME (RESPECTING ACTIVE INTERACTION - FIX ERROR 2) */
+        /* POLLING BACKUP & REALTIME */
         setInterval(async () => {
             try {
                 if (!isEditingProtectedAdminArea()) {
