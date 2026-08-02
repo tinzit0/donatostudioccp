@@ -3,403 +3,1785 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <title>Donato App</title>
-    
+    <title>Donatostudio Barbería | Reserva de Citas en Vivo</title>
+    <meta name="description" content="Barbería Donatostudio en Nonguén, Concepción. Cortes de precisión y perfilado de barba con Nico.">
+    <meta name="theme-color" content="#111111">
+
     <!-- Configuración para App Nativa en iPhone -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Donato App">
     <link rel="apple-touch-icon" href="assets/WhatsApp Image 2026-05-23 at 22.37.18.jpeg">
-    <meta name="theme-color" content="#111111">
 
-    <!-- Supabase & Tailwind -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Tipografías de Lujo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Tailwind CSS & Supabase SDK -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: { barber: { dark: '#111111', gold: '#d4af37', gray: '#1f1f1f' }, danger: '#9e4242' }
+                    colors: {
+                        studio: '#111111',
+                        panel: '#1f1f1f',
+                        accent: '#d4af37', // Gold Barber
+                        accentHover: '#e5c158',
+                        muted: '#8b9690',
+                        bone: '#e0e6e2',
+                        danger: '#9e4242'
+                    },
+                    fontFamily: {
+                        cinzel: ['"Cinzel"', 'serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"Inter"', 'sans-serif'],
+                    }
                 }
             }
         }
     </script>
+
     <style>
-        body { background-color: #111111; color: white; -webkit-tap-highlight-color: transparent; }
-        .app-card { background: #1f1f1f; border: 1px solid #333; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body {
+            background-color: #111111;
+            color: #e0e6e2;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        ::selection { background: #d4af37; color: #000000; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #111111; }
+        ::-webkit-scrollbar-thumb { background: #2d2d2d; }
+        ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+
+        /* PANTALLA DE CARGA */
+        #pantalla-carga {
+            position: fixed; inset: 0; width: 100vw; height: 100vh;
+            background-color: #111111; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 999999;
+            transition: opacity 0.6s ease, visibility 0.6s;
+        }
+        .ocultar-carga { opacity: 0; visibility: hidden; pointer-events: none; }
+        .spinner {
+            width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.1);
+            border-top: 2px solid #d4af37; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* NAVBAR FIJO SÓLIDO */
+        .navbar {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background-color: rgba(17, 17, 17, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 50;
+            padding: 12px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        }
+        
+        .nav-link { position: relative; padding-bottom: 4px; cursor: pointer; }
+        .nav-link::after {
+            content: ''; position: absolute; width: 0; height: 1px; bottom: 0; left: 50%;
+            background-color: #d4af37; transition: all 0.3s ease; transform: translateX(-50%);
+        }
+        .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+
+        /* CARDS & GALLERY */
+        .gallery-card {
+            position: relative; overflow: hidden; border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08); background: #1f1f1f;
+            transition: all 0.4s ease;
+        }
+        .gallery-card:hover {
+            border-color: rgba(212, 175, 55, 0.5); transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+        }
+        .gallery-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s ease; }
+        .gallery-card:hover img { transform: scale(1.07); }
+        .gallery-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(17, 17, 17, 0.95) 0%, rgba(17, 17, 17, 0.3) 60%, transparent 100%);
+            opacity: 0; transition: opacity 0.4s ease; display: flex; flex-direction: column;
+            justify-content: flex-end; padding: 1.5rem;
+        }
+        .gallery-card:hover .gallery-overlay { opacity: 1; }
+
+        .action-card, .app-card {
+            background: linear-gradient(145deg, #1f1f1f 0%, #151515 100%);
+            border: 1px solid rgba(212, 175, 55, 0.2); transition: all 0.4s ease; border-radius: 16px;
+        }
+        .btn-primary-action {
+            background: #d4af37; color: #000000; font-weight: 700; transition: all 0.3s ease;
+        }
+        .btn-primary-action:hover:not(:disabled) {
+            background: #e5c158; transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .slot-btn { border: 1px solid rgba(212, 175, 55, 0.3); transition: all 0.2s ease; }
+        .slot-btn.selected {
+            background: #d4af37; color: #000000; border-color: #d4af37; font-weight: 700;
+            transform: scale(1.04); box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
+        }
+        .slot-btn:not(:disabled):hover { border-color: #d4af37; transform: translateY(-1px); }
+        .slot-btn:disabled { opacity: 0.25; cursor: not-allowed; text-decoration: line-through; }
+
+        /* CALENDARIOS */
+        .cal-day {
+            position: relative; aspect-ratio: 1 / 1; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            cursor: pointer; transition: all 0.2s ease; font-size: 11px;
+        }
+        .cal-day:not(.cal-disabled):hover {
+            border-color: #d4af37; background: rgba(212, 175, 55, 0.12); transform: translateY(-2px);
+        }
+        .cal-day.cal-selected {
+            background: #d4af37; border-color: #d4af37; color: #000; font-weight: 700;
+            transform: scale(1.05); box-shadow: 0 6px 18px rgba(212, 175, 55, 0.4);
+        }
+        .cal-day.cal-today:not(.cal-selected) { border-color: rgba(224,230,226,0.4); }
+        .cal-day.cal-disabled { opacity: 0.25; cursor: not-allowed; }
+        .cal-day.cal-empty { visibility: hidden; cursor: default; }
+        .cal-dot { width: 5px; height: 5px; border-radius: 50%; position: absolute; bottom: 5px; }
+        .cal-dot-green { background: #4ade80; }
+        .cal-dot-yellow { background: #facc15; }
+        .cal-dot-red { background: #f87171; }
+        .cal-dot-gray { background: #6b7280; }
+        .cal-day.cal-selected .cal-dot { background: #000000; }
+
+        /* TOASTS */
+        #toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 999998;
+            display: flex; flex-direction: column; gap: 10px; max-width: calc(100vw - 40px);
+        }
+        .toast {
+            background: #1f1f1f; border: 1px solid rgba(212, 175, 55, 0.35); color: #e0e6e2;
+            padding: 12px 16px; border-radius: 12px; font-size: 12px; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); min-width: 240px; max-width: 340px;
+            transform: translateX(120%); opacity: 0; transition: all 0.4s ease;
+        }
+        .toast.toast-show { transform: translateX(0); opacity: 1; }
+
+        .gold-accent-text {
+            background: linear-gradient(135deg, #e0e6e2 0%, #d4af37 50%, #aa8b2c 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
     </style>
 </head>
-<body class="antialiased pb-10">
 
-    <!-- HEADER APP -->
-    <header id="app-header" class="hidden bg-barber-dark pt-12 pb-4 px-5 sticky top-0 z-50 border-b border-gray-800 flex justify-between items-end backdrop-blur-md bg-opacity-90">
-        <div>
-            <p class="text-barber-gold text-[10px] tracking-[0.2em] font-bold uppercase mb-1">Nico Donatostudio</p>
-            <h1 class="text-2xl font-serif">Panel de Control</h1>
+<body>
+
+<!-- PANTALLA DE CARGA -->
+<div id="pantalla-carga">
+    <div class="spinner"></div>
+    <h2 class="font-cinzel text-xl tracking-[0.2em] text-bone uppercase font-light">Donatostudio</h2>
+    <p id="loading-status" class="text-muted text-xs mt-2 font-mono">Cargando barbería...</p>
+</div>
+
+<!-- TOASTS CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- NAVBAR NAVEGABLE FIJO -->
+<nav id="navbar" class="navbar flex flex-col items-center px-4">
+    <div class="text-accent text-sm md:text-base mb-0.5 hover:text-accentHover transition-colors cursor-pointer" onclick="showPublicLanding()">
+        <i class="fa-solid fa-scissors"></i>
+    </div>
+    <a href="#" onclick="showPublicLanding()" class="font-cinzel text-lg md:text-xl text-bone tracking-[0.15em] font-normal mb-1.5 uppercase">DONATOSTUDIO</a>
+
+    <div class="hidden md:flex items-center gap-6 font-sans text-[10px] md:text-xs font-semibold tracking-widest uppercase text-muted">
+        <div id="public-nav-links" class="flex items-center gap-6">
+            <a href="#experiencia" onclick="showPublicLanding()" class="nav-link hover:text-bone transition-colors">Experiencia</a>
+            <a href="#servicios" onclick="showPublicLanding()" class="nav-link hover:text-bone transition-colors">Servicios</a>
+            <a href="#cortes" onclick="showPublicLanding()" class="nav-link hover:text-bone transition-colors">Trabajos</a>
+            <a href="#agendar" onclick="showPublicLanding()" class="nav-link hover:text-bone transition-colors text-accent font-bold">Booking</a>
+            <a href="#ubicacion" onclick="showPublicLanding()" class="nav-link hover:text-bone transition-colors">Ubicación</a>
+            <button onclick="openClientManageModal()" class="nav-link text-accent hover:text-bone transition-colors flex items-center gap-1.5 border border-accent/30 px-3 py-1 rounded-full bg-accent/10">
+                <i class="fa-solid fa-calendar-check text-xs"></i> Mis Citas
+            </button>
+            <span class="w-px h-3 bg-white/10"></span>
+            <span id="sync-status-header" class="sync-indicator">
+                <i class="fa-solid fa-cloud"></i>
+                <span id="sync-status-text">Sincronizado</span>
+            </span>
         </div>
-        <button onclick="window.logoutAdmin()" class="text-gray-400 hover:text-white text-xl p-2">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-        </button>
-    </header>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="hidden min-h-screen flex-col items-center justify-center p-6">
-        <div class="w-full max-w-sm app-card text-center py-10 shadow-2xl">
-            <i class="fa-solid fa-scissors text-barber-gold text-4xl mb-4"></i>
-            <h2 class="text-2xl font-serif mb-2">Donatostudio App</h2>
-            <p class="text-xs text-gray-400 mb-8">Acceso exclusivo para barberos</p>
-            
-            <form onsubmit="window.processDirectLogin(event)" class="space-y-4 text-left">
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 font-semibold">Correo</label>
-                    <input type="email" id="login-email" required placeholder="donato@gmail.com"
-                           class="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-barber-gold">
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 font-semibold">Contraseña</label>
-                    <input type="password" id="login-password" required placeholder="••••••••"
-                           class="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-barber-gold">
-                </div>
-                <button type="submit" class="w-full bg-barber-gold text-black font-bold text-sm tracking-widest py-3.5 rounded-xl uppercase mt-4">
-                    Entrar
-                </button>
-            </form>
+        <div id="auth-nav-slot">
+            <button onclick="handleAdminNavClick()" id="nav-admin-toggle" class="nav-link text-accent hover:text-bone transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-user-gear text-xs"></i>
+                <span id="nav-admin-label">Panel Admin</span>
+            </button>
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD -->
-    <div id="dashboard-screen" class="hidden px-4 pt-6 max-w-md mx-auto">
-        
-        <!-- ESTADÍSTICAS RÁPIDAS -->
-        <div class="flex gap-4 mb-6">
-            <div class="flex-1 app-card text-center py-4">
-                <i class="fa-regular fa-calendar text-barber-gold text-xl mb-2"></i>
-                <h3 id="stat-bookings" class="text-2xl font-bold">0</h3>
-                <p class="text-[10px] text-gray-400 uppercase">Citas este mes</p>
+    <button id="mobileBtn" class="md:hidden absolute right-5 top-4 text-muted hover:text-accent focus:outline-none transition-colors" onclick="toggleMobileMenu()">
+        <i class="fa-solid fa-bars text-xl"></i>
+    </button>
+</nav>
+
+<!-- MOBILE MENU OVERLAY -->
+<div id="mobileMenu" class="fixed inset-0 bg-studio z-50 hidden flex-col justify-center items-center gap-6 font-serif text-lg text-bone">
+    <a href="#experiencia" onclick="showPublicLanding(); toggleMobileMenu();" class="hover:text-accent mobile-link transition-colors">Experiencia</a>
+    <a href="#servicios" onclick="showPublicLanding(); toggleMobileMenu();" class="hover:text-accent mobile-link transition-colors">Servicios</a>
+    <a href="#cortes" onclick="showPublicLanding(); toggleMobileMenu();" class="hover:text-accent mobile-link transition-colors">Trabajos</a>
+    <a href="#agendar" onclick="showPublicLanding(); toggleMobileMenu();" class="hover:text-accent text-accent font-bold mobile-link transition-colors">Reservar Hora</a>
+    <a href="#ubicacion" onclick="showPublicLanding(); toggleMobileMenu();" class="hover:text-accent mobile-link transition-colors">Ubicación</a>
+    <button onclick="openClientManageModal(); toggleMobileMenu();" class="hover:text-accent text-accent transition-colors flex items-center gap-2 border border-accent/40 px-4 py-2 rounded-full">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Mis Citas / Cancelar</span>
+    </button>
+    <button onclick="handleAdminNavClick(); toggleMobileMenu();" class="hover:text-accent mobile-link text-muted transition-colors flex items-center gap-2">
+        <i class="fa-solid fa-user-gear"></i>
+        <span id="mobile-admin-label">Panel Admin</span>
+    </button>
+</div>
+
+<!-- VISTA PÚBLICA -->
+<div id="landing-container">
+
+    <!-- PORTADA HERO -->
+    <header class="relative min-h-screen flex items-center justify-center text-center pt-32 pb-12 overflow-hidden bg-black">
+        <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover opacity-40">
+            <source src="assets/ffad8fb9ab10adc77a86562354d4e507_t1.mp4" type="video/mp4">
+        </video>
+        <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-studio"></div>
+
+        <div class="relative z-10 max-w-4xl px-6 flex flex-col items-center">
+            <div class="reveal-mask inline-mask mb-4">
+                <span class="reveal-item delay-1 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-md text-accent text-[9px] md:text-[10px] tracking-[0.25em] uppercase font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+                    Barbería Exclusiva — Nonguén, Concepción
+                </span>
             </div>
-            <div class="flex-1 app-card text-center py-4" onclick="window.loadDataAndRender()" style="cursor:pointer">
-                <i class="fa-solid fa-rotate text-barber-gold text-xl mb-2"></i>
-                <h3 class="text-sm font-bold mt-3 uppercase text-gray-300">Actualizar</h3>
+
+            <div class="reveal-mask inline-mask mb-3">
+                <h1 class="reveal-item delay-2 font-cinzel text-4xl sm:text-6xl md:text-7xl font-normal tracking-[0.12em] uppercase text-bone">
+                    DONATO<span class="gold-accent-text italic font-serif">studio</span>
+                </h1>
+            </div>
+
+            <div class="reveal-mask inline-mask mb-6">
+                <div class="reveal-item delay-2 flex items-center gap-3 opacity-60">
+                    <div class="w-10 md:w-16 h-px bg-gradient-to-r from-transparent to-accent"></div>
+                    <i class="fa-solid fa-crown text-accent text-[8px]"></i>
+                    <div class="w-10 md:w-16 h-px bg-gradient-to-l from-transparent to-accent"></div>
+                </div>
+            </div>
+
+            <div class="reveal-mask inline-mask max-w-xl mb-10">
+                <p class="reveal-item delay-3 font-serif italic text-base sm:text-lg md:text-xl text-bone tracking-wide leading-relaxed">
+                    "Tu estilo es la firma; nuestro corte, la maestría."
+                </p>
+                <p class="reveal-item delay-3 font-sans text-muted text-xs mt-2 font-light tracking-widest uppercase">
+                    Cortes de precisión, barbería tradicional y atención personalizada con Nico.
+                </p>
+            </div>
+
+            <div class="reveal-mask inline-mask">
+                <div class="reveal-item delay-3 flex flex-col sm:flex-row items-center gap-4">
+                    <a href="#agendar" onclick="showPublicLanding()" 
+                       class="btn-primary-action px-8 py-3.5 rounded-xl text-xs font-sans uppercase tracking-[0.2em] shadow-2xl flex items-center gap-2">
+                        <span>Reserva tu Hora</span>
+                        <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </a>
+                    <button onclick="openClientManageModal()" 
+                       class="px-8 py-3.5 rounded-xl text-xs font-sans font-semibold uppercase tracking-[0.2em] text-accent bg-white/[0.03] hover:bg-white/[0.08] border border-accent/40 backdrop-blur-md transition-all">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i> Mis Citas
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- REGISTRO DE CITAS -->
-        <h2 class="text-lg font-serif mb-3 text-barber-gold border-b border-gray-800 pb-2"><i class="fa-solid fa-list mr-2"></i> Citas de Clientes</h2>
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
+            <span class="text-[8px] tracking-[0.25em] text-muted uppercase font-sans">Explorar</span>
+            <div class="w-4 h-7 border border-white/20 rounded-full flex justify-center p-1">
+                <div class="w-1 h-1.5 bg-accent rounded-full animate-bounce"></div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+      <!-- NOSOTROS Y EXPERIENCIA -->
+      <section id="experiencia" class="py-20 md:py-28 px-6 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div class="text-center md:text-left">
+              <span class="text-accent text-[10px] tracking-[0.3em] uppercase font-semibold block mb-2">Vanguardia & Tradición</span>
+              <h2 class="text-3xl sm:text-4xl font-serif text-white mb-6">La Experiencia Donatostudio</h2>
+              <p class="text-sm text-gray-400 leading-relaxed font-light">
+                  Buscamos entregar el mejor servicio a nuestros clientes, siguiendo el vanguardismo y modernismo, pero siempre desde un enfoque tradicional. Logramos una experiencia completa en la cual cada cliente es un desafío, entregándoles un trato personalizado para obtener su mejor versión.
+              </p>
+          </div>
+          <div class="action-card p-8 rounded-2xl text-center shadow-2xl border border-accent/20 mx-auto w-full max-w-md">
+              <h3 class="text-2xl font-serif text-white mb-6 uppercase tracking-wider">Horario de Atención</h3>
+              <ul class="space-y-4 text-sm text-gray-300">
+                  <li class="border-b border-gray-800 pb-3">
+                      <span class="block font-bold text-white text-base">Lunes a Viernes</span>
+                      <span class="text-accent font-mono text-xs">10:00 - 20:00 hrs</span>
+                  </li>
+                  <li class="pb-2">
+                      <span class="block font-bold text-white text-base">Sábados</span>
+                      <span class="text-accent font-mono text-xs">10:00 - 15:00 hrs</span>
+                  </li>
+              </ul>
+              <p class="text-xs text-muted mt-6 italic">Recomendamos agendar tu hora con anticipación.</p>
+          </div>
+      </section>
+
+      <!-- SERVICIOS Y PRECIOS -->
+      <section id="servicios" class="py-24 md:py-32 bg-panel relative border-y border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+          <div class="reveal-mask text-center mb-16">
+              <span class="reveal-item delay-1 text-accent text-[9px] md:text-[10px] tracking-[0.3em] uppercase font-semibold block mb-2">Cartel de Excelencia</span>
+              <h2 class="reveal-item delay-1 font-cinzel text-2xl md:text-4xl text-bone tracking-widest font-normal uppercase">
+                Servicios & Precios
+              </h2>
+              <div class="w-12 h-px bg-accent/40 mx-auto mt-4"></div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div class="action-card rounded-2xl p-6 sm:p-8 space-y-4">
+                  <h3 class="font-serif text-xl text-bone border-b border-white/10 pb-3 flex justify-between items-center">
+                      <span>Corte de Cabello</span>
+                      <span class="text-accent font-mono">$12.000 CLP</span>
+                  </h3>
+                  <p class="text-xs text-muted leading-relaxed">Tijera, máquina y/o navaja + acabado profesional con producto final de estilizado.</p>
+              </div>
+
+              <div class="action-card rounded-2xl p-6 sm:p-8 space-y-4">
+                  <h3 class="font-serif text-xl text-bone border-b border-white/10 pb-3 flex justify-between items-center">
+                      <span>Corte + Barba</span>
+                      <span class="text-accent font-mono">$17.000 CLP</span>
+                  </h3>
+                  <p class="text-xs text-muted leading-relaxed">El servicio clásico completo: corte de precisión y perfilado o afeitado esculpido de barba.</p>
+              </div>
+
+              <div class="action-card rounded-2xl p-6 sm:p-8 space-y-4">
+                  <h3 class="font-serif text-xl text-bone border-b border-white/10 pb-3 flex justify-between items-center">
+                      <span>Ritual de Barba</span>
+                      <span class="text-accent font-mono">$8.000 CLP</span>
+                  </h3>
+                  <p class="text-xs text-muted leading-relaxed">Afeitado o perfilado profesional con toalla caliente, hidratación y aceite para barba.</p>
+              </div>
+
+              <div class="action-card rounded-2xl p-6 sm:p-8 space-y-4">
+                  <h3 class="font-serif text-xl text-bone border-b border-white/10 pb-3 flex justify-between items-center">
+                      <span>Peinado / Cejas</span>
+                      <span class="text-accent font-mono">$5.000 / $2.000 CLP</span>
+                  </h3>
+                  <p class="text-xs text-muted leading-relaxed">Secado, lavado y producto de modelado ($5.000) o perfilado simétrico de cejas ($2.000).</p>
+              </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRABAJOS Y GALERÍA -->
+      <section id="cortes" class="py-24 md:py-32 bg-studio relative">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="reveal-mask text-center mb-16">
+              <span class="reveal-item delay-1 text-accent text-[9px] md:text-[10px] tracking-[0.3em] uppercase font-semibold block mb-2">Galería de Autor</span>
+              <h2 class="reveal-item delay-1 font-cinzel text-2xl md:text-4xl text-bone tracking-widest font-normal uppercase">
+                Trabajos Realizados
+              </h2>
+              <p class="reveal-item delay-2 text-xs text-muted mt-2 font-light">Trabajos reales en el studio con la firma de Nico.</p>
+              <div class="w-12 h-px bg-accent/40 mx-auto mt-4"></div>
+          </div>
+
+          <div class="flex justify-center mb-16">
+              <div class="w-full max-w-sm gallery-card aspect-[3/4] shadow-2xl cursor-pointer" onclick="openLightbox('assets/WhatsApp Image 2026-05-23 at 22.37.18.jpeg')">
+                  <img src="assets/WhatsApp Image 2026-05-23 at 22.37.18.jpeg" alt="Mid Fade Profesional Nico Donatostudio">
+                  <div class="gallery-overlay">
+                      <span class="text-accent text-[9px] tracking-[0.2em] font-mono uppercase mb-1">Donatostudio</span>
+                      <h3 class="font-serif text-lg text-bone font-light">Mid Fade Profesional</h3>
+                      <p class="text-[11px] text-muted mt-1">Corte realizado en el studio por Nico.</p>
+                  </div>
+              </div>
+          </div>
+
+          <h3 class="text-xl font-serif text-center text-white mb-8 uppercase tracking-wider">El Studio en Acción</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div class="gallery-card aspect-[9/16] shadow-xl overflow-hidden">
+                  <video class="w-full h-full object-cover" autoplay loop muted playsinline preload="metadata">
+                      <source src="assets/WhatsApp Video 2026-05-23 at 22.38.00.mp4" type="video/mp4">
+                  </video>
+              </div>
+              <div class="gallery-card aspect-[9/16] shadow-xl overflow-hidden">
+                  <video class="w-full h-full object-cover" autoplay loop muted playsinline preload="metadata">
+                      <source src="assets/WhatsApp Video 2026-05-23 at 22.38.56.mp4" type="video/mp4">
+                  </video>
+              </div>
+              <div class="gallery-card aspect-[9/16] shadow-xl overflow-hidden">
+                  <video class="w-full h-full object-cover" autoplay loop muted playsinline preload="metadata">
+                      <source src="assets/WhatsApp Video 2026-05-23 at 22.37.55.mp4" type="video/mp4">
+                  </video>
+              </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AGENDAMIENTO EN VIVO DIRECTO -->
+      <section id="agendar" class="py-20 md:py-32 bg-panel relative border-t border-white/5">
+        <div class="max-w-5xl mx-auto px-4 md:px-6 text-center">
+          <div class="reveal-mask mb-8 md:mb-12">
+              <h2 class="reveal-item delay-1 font-serif text-2xl md:text-3xl text-bone font-light mb-3">Reserva tu Hora con Nico</h2>
+              <p class="reveal-item delay-2 font-sans text-accent text-[10px] md:text-xs tracking-[0.25em] uppercase mb-2 font-semibold">Nonguén, Concepción</p>
+              <div class="w-12 h-px bg-accent/30 mx-auto my-4 md:my-6"></div>
+              <p class="reveal-item delay-3 font-sans text-muted text-xs mx-auto max-w-lg leading-relaxed">
+                  Selecciona la fecha y el bloque de horario disponible. Tu cita quedará agendada directamente.
+              </p>
+          </div>
+
+          <div class="reveal-mask">
+              <div class="reveal-item delay-3 text-left max-w-5xl mx-auto">
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+                      <div class="md:col-span-7 action-card rounded-2xl p-5 md:p-8 shadow-2xl">
+                          <div class="flex items-center justify-between mb-5 pb-3 border-b border-white/5">
+                              <h3 class="font-serif text-base md:text-lg text-bone flex items-center gap-2">
+                                  <span class="text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded border border-accent/20">01</span>
+                                  Selecciona Fecha y Hora
+                              </h3>
+                              <span id="client-sync-status" class="sync-indicator text-[8px]">
+                                  <i class="fa-solid fa-cloud"></i>
+                                  <span>En vivo</span>
+                              </span>
+                          </div>
+
+                          <!-- CALENDARIO VISUAL CLIENTE -->
+                          <div class="mb-5">
+                              <div class="flex items-center justify-between mb-3">
+                                  <button type="button" onclick="calNavigate(-1)" class="w-7 h-7 flex items-center justify-center rounded-full bg-studio border border-white/10 text-muted hover:text-bone hover:border-accent transition cursor-pointer">
+                                      <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                                  </button>
+                                  <span id="cal-month-label" class="font-serif text-sm md:text-base text-bone tracking-wide capitalize"></span>
+                                  <button type="button" onclick="calNavigate(1)" class="w-7 h-7 flex items-center justify-center rounded-full bg-studio border border-white/10 text-muted hover:text-bone hover:border-accent transition cursor-pointer">
+                                      <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                  </button>
+                              </div>
+                              <div class="grid grid-cols-7 gap-1.5 mb-1.5 text-center text-[9px] md:text-[10px] text-muted uppercase tracking-wider font-semibold">
+                                  <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sa</span><span>Do</span>
+                              </div>
+                              <div id="client-calendar-grid" class="grid grid-cols-7 gap-1.5"></div>
+                              <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-[9px] text-muted">
+                                  <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#4ade80]"></span>Disponible</span>
+                                  <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#facc15]"></span>Últimos cupos</span>
+                                  <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#f87171]"></span>Completo</span>
+                                  <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#6b7280]"></span>Cerrado/Pasado</span>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label class="block text-[11px] uppercase text-muted tracking-wider mb-3 font-semibold">Bloques Disponibles</label>
+                              <div id="client-slots-container" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                  <div class="col-span-full text-center text-muted text-xs py-4">Selecciona un día activo</div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="md:col-span-5 action-card rounded-2xl p-5 md:p-8 shadow-2xl flex flex-col justify-between">
+                          <div>
+                              <div class="flex items-center justify-between mb-5 pb-3 border-b border-white/5">
+                                  <h3 class="font-serif text-base md:text-lg text-bone flex items-center gap-2">
+                                      <span class="text-xs font-mono bg-accent/20 text-accent px-2 py-0.5 rounded border border-accent/20">02</span>
+                                      Tus Datos
+                                  </h3>
+                              </div>
+                              <form id="booking-form" onsubmit="processClientBooking(event)" class="space-y-3.5">
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Nombre Completo</label>
+                                      <input type="text" id="client-name" required placeholder="Ej: Juan Pérez"
+                                             class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
+                                  </div>
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-sans">Correo Electrónico (Para recibir la confirmación)</label>
+                                      <input type="email" id="client-email" required placeholder="tu_correo@ejemplo.com"
+                                             class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
+                                  </div>
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-sans">Usuario de Instagram (Opcional)</label>
+                                      <input type="text" id="client-instagram" placeholder="@tu_instagram"
+                                             class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
+                                  </div>
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Teléfono / WhatsApp</label>
+                                      <input type="tel" id="client-phone" required placeholder="+56 9 1234 5678"
+                                             class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent">
+                                  </div>
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Servicio Requerido</label>
+                                      <select id="client-service" class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm focus:outline-none focus:border-accent cursor-pointer">
+                                          <option value="Corte de Cabello ($12.000)">Corte de Cabello ($12.000)</option>
+                                          <option value="Corte + Barba ($17.000)">Corte + Barba ($17.000)</option>
+                                          <option value="Ritual de Barba ($8.000)">Ritual de Barba ($8.000)</option>
+                                          <option value="Peinado / Modelado ($5.000)">Peinado / Modelado ($5.000)</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label class="block text-[10px] uppercase text-muted tracking-wider mb-1">Notas / Detalles</label>
+                                      <textarea id="client-notes" rows="2" placeholder="Ej: Mid fade arriba con tijera..."
+                                                class="w-full bg-studio border border-white/10 rounded-lg px-3 py-2 text-bone text-xs md:text-sm leading-relaxed focus:outline-none focus:border-accent resize-y min-h-[60px]"></textarea>
+                                  </div>
+
+                                  <div class="bg-studio/50 p-3 rounded-lg border border-white/5 text-[11px] text-muted space-y-1">
+                                      <div class="flex justify-between"><span>Fecha:</span> <strong id="summary-date" class="text-bone">--</strong></div>
+                                      <div class="flex justify-between"><span>Hora:</span> <strong id="summary-time" class="text-bone">--</strong></div>
+                                      <div class="flex justify-between"><span>Barbero:</span> <strong class="text-accent">Nico Donatostudio</strong></div>
+                                  </div>
+                                  
+                                  <button type="submit" id="btn-submit-booking" disabled
+                                          class="btn-primary-action mt-4 w-full flex items-center justify-center gap-2 py-3.5 rounded-xl uppercase cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed text-xs">
+                                      <i class="fa-solid fa-calendar-plus text-xs"></i>
+                                      <span>Confirmar Reserva Directa</span>
+                                  </button>
+                              </form>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- UBICACIÓN -->
+      <section id="ubicacion" class="py-20 md:py-28 bg-studio border-t border-white/5 px-6">
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+            <div class="md:col-span-1 text-center md:text-left">
+                <span class="text-accent font-bold text-xs uppercase tracking-widest block mb-1">¿Dónde estamos?</span>
+                <h2 class="text-2xl sm:text-3xl font-serif text-white mb-4 uppercase">Ubicación</h2>
+                <p class="text-gray-300 text-base mb-4 font-light">Río Lontué 624,<br>Sector Nonguén,<br>Concepción, Chile</p>
+                <p class="text-xs text-muted leading-relaxed">Ubicados en un sector residencial tranquilo y de fácil acceso. Estacionamiento disponible afuera del local.</p>
+            </div>
+            <div class="md:col-span-2 w-full h-[320px] bg-panel p-2 border border-white/10 rounded-2xl shadow-xl">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3193.364448554245!2d-73.012574!3d-36.785702!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9669b6136fa58dfb%3A0xe5a3637f485747cb!2sR%C3%ADo%20Lontu%C3%A9%20624%2C%20Concepci%C3%B3n%2C%20B%C3%ADo%20B%C3%ADo!5e0!3m2!1ses!2scl!4v1716492000000!5m2!1ses!2scl"
+                        title="Mapa Donatostudio" class="w-full h-full border-0 rounded-xl opacity-90 invert-[90%] hue-rotate-[180deg]"
+                        allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-studio py-12 md:py-16 border-t border-white/5 text-center relative z-10">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-accent text-lg mb-2"><i class="fa-solid fa-scissors"></i></div>
+        <p class="font-cinzel text-lg md:text-xl tracking-widest text-bone mb-3 font-light uppercase">Donatostudio Barbería</p>
         
-        <div class="mb-4">
-            <input type="month" id="admin-month-filter" onchange="window.renderAdminBookingsTable()" 
-                   class="w-full bg-barber-gray border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-barber-gold">
+        <div class="flex justify-center items-center gap-5 my-4">
+            <a href="https://www.instagram.com/donatobarberoccp?igsh=cG9mNWw2NGdsbmRj" target="_blank" rel="noopener noreferrer" 
+               class="w-10 h-10 rounded-full border border-white/10 bg-white/[0.02] text-muted hover:text-accent hover:border-accent flex items-center justify-center text-lg transition-all">
+                <i class="fa-brands fa-instagram"></i>
+            </a>
+            <a href="https://wa.me/56922404536" target="_blank" rel="noopener noreferrer" 
+               class="w-10 h-10 rounded-full border border-white/10 bg-white/[0.02] text-muted hover:text-accent hover:border-accent flex items-center justify-center text-lg transition-all">
+                <i class="fa-brands fa-whatsapp"></i>
+            </a>
         </div>
 
-        <div id="admin-bookings-list" class="space-y-3 mb-8"></div>
+        <p class="font-sans text-[9px] md:text-[10px] text-muted uppercase tracking-widest mt-4">© 2026 Donatostudio Barbería. Todos los derechos reservados.</p>
+      </div>
+    </footer>
+</div>
 
-        <!-- CONFIGURADOR DE HORARIOS -->
-        <h2 class="text-lg font-serif mb-3 text-barber-gold border-b border-gray-800 pb-2 mt-8"><i class="fa-regular fa-clock mr-2"></i> Disponibilidad Semanal</h2>
-        
-        <div class="app-card">
-            <div class="flex gap-2 mb-4">
-                <input type="month" id="admin-week-month" onchange="window.loadAndRenderWeeklySchedule()"
-                       class="w-1/2 bg-black border border-gray-700 rounded-lg px-2 py-2 text-white text-xs focus:outline-none">
-                <select id="admin-week-number" onchange="window.loadAndRenderWeeklySchedule()"
-                        class="w-1/2 bg-black border border-gray-700 rounded-lg px-2 py-2 text-white text-xs focus:outline-none">
-                    <option value="1">Semana 1</option>
-                    <option value="2">Semana 2</option>
-                    <option value="3">Semana 3</option>
-                    <option value="4">Semana 4</option>
-                    <option value="5">Semana 5</option>
-                </select>
+<!-- MODAL MIS CITAS / CANCELACIÓN DIRECTA -->
+<div id="client-manage-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="action-card rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/10 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <h3 class="font-serif text-lg text-bone flex items-center gap-2">
+                <i class="fa-solid fa-calendar-check text-accent"></i>
+                Mis Citas / Cancelar Reserva
+            </h3>
+            <button onclick="closeClientManageModal()" class="text-muted hover:text-bone text-lg">×</button>
+        </div>
+        <p class="text-xs text-muted">Ingresa tu correo o teléfono con el que reservaste para ver o cancelar tus citas.</p>
+        <form onsubmit="searchClientBookings(event)" class="space-y-3">
+            <div>
+                <input type="text" id="client-search-input" required placeholder="Ej: correo@ejemplo.com o +56912345678"
+                       class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs focus:outline-none focus:border-accent">
+            </div>
+            <button type="submit" class="btn-primary-action w-full py-2.5 rounded-xl text-xs uppercase tracking-wider">
+                Buscar Citas
+            </button>
+        </form>
+        <div id="client-bookings-results" class="space-y-3 max-h-60 overflow-y-auto pt-2 border-t border-white/5"></div>
+    </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN RESERVA ÉXITO -->
+<div id="success-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="action-card rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl border border-white/10 space-y-4">
+        <div class="text-accent text-3xl mb-1"><i class="fa-solid fa-circle-check"></i></div>
+        <h3 class="font-serif text-xl text-bone">¡Cita Confirmada!</h3>
+        <p id="success-modal-message" class="text-xs text-muted leading-relaxed">
+            Tu reserva con Nico ha sido confirmada con éxito. Hemos enviado un correo de confirmación a tu e-mail y agendado el compromiso.
+        </p>
+        <div id="calendar-add-buttons" class="space-y-2 pt-2"></div>
+        <button onclick="closeSuccessModal()" class="btn-primary-action w-full py-2.5 rounded-xl uppercase text-xs">
+            Entendido
+        </button>
+    </div>
+</div>
+
+<!-- LOGIN ADMIN -->
+<div id="login-container" class="hidden min-h-[85vh] pt-32 pb-16 px-4 max-w-sm mx-auto flex flex-col justify-center">
+    <div class="action-card rounded-2xl p-6 md:p-8 text-center shadow-2xl">
+        <div class="text-accent text-2xl md:text-3xl mb-3"><i class="fa-solid fa-scissors"></i></div>
+        <h2 class="font-serif text-xl md:text-2xl text-bone mb-2 font-light">Donatostudio Admin</h2>
+        <p class="text-[11px] text-muted mb-5 leading-relaxed">Ingresa tus credenciales para administrar la barbería.</p>
+        <form id="login-form" onsubmit="processDirectLogin(event)" class="space-y-3.5 text-left mb-5">
+            <div>
+                <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-semibold">Correo Administrativo</label>
+                <input type="email" id="login-email" required placeholder="donato@gmail.com"
+                       class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs focus:outline-none focus:border-accent">
+            </div>
+            <div>
+                <label class="block text-[10px] uppercase text-muted tracking-wider mb-1 font-semibold">Contraseña</label>
+                <input type="password" id="login-password" required placeholder="••••••••"
+                       class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs focus:outline-none focus:border-accent">
+            </div>
+            <button type="submit" class="btn-primary-action w-full py-3 rounded-xl uppercase text-xs mt-1">
+                Ingresar al Panel
+            </button>
+        </form>
+        <button onclick="showPublicLanding()" class="text-[11px] text-muted hover:text-bone transition">
+            Volver a la vista de cliente
+        </button>
+    </div>
+</div>
+
+<!-- PANEL ADMIN ESTILO APP -->
+<div id="admin-container" class="hidden relative z-30 min-h-screen pt-36 md:pt-40 pb-16 px-3 md:px-8 max-w-4xl mx-auto">
+    
+    <!-- ENCABEZADO Y ESTADÍSTICAS RÁPIDAS APP -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-white/10 gap-3">
+        <div>
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-accent text-[10px] md:text-xs tracking-[0.2em] uppercase font-semibold">Nico Donatostudio</span>
+                <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] px-1.5 py-0.5 rounded font-mono">Panel App</span>
+                <span id="admin-sync-status" class="sync-indicator text-[8px]">
+                    <i class="fa-solid fa-cloud"></i>
+                    <span>Sincronizado</span>
+                </span>
+            </div>
+            <h1 class="font-serif text-xl md:text-3xl text-bone font-light">Control de Barbería</h1>
+        </div>
+
+        <div class="flex flex-wrap gap-2.5 w-full sm:w-auto z-50 font-mono text-xs">
+            <button onclick="logoutAdmin()" class="bg-studio hover:bg-white/5 text-bone border border-white/10 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Salir
+            </button>
+            <button onclick="showPublicLanding()" class="bg-black hover:bg-black/80 text-bone px-4 py-2 rounded-xl transition font-bold">
+                Ver Web
+            </button>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE MÉTRICAS APP -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="app-card text-center py-4">
+            <i class="fa-regular fa-calendar text-accent text-xl mb-1"></i>
+            <h3 id="stat-bookings" class="text-2xl font-bold text-bone">0</h3>
+            <p class="text-[10px] text-muted uppercase tracking-wider font-semibold">Citas este mes</p>
+        </div>
+        <div class="app-card text-center py-4 cursor-pointer hover:border-accent transition" onclick="loadDataAndRender()">
+            <i class="fa-solid fa-rotate text-accent text-xl mb-1"></i>
+            <h3 class="text-xs font-bold mt-2 uppercase text-bone">Sincronizar</h3>
+            <p class="text-[9px] text-muted">Actualizar datos</p>
+        </div>
+    </div>
+
+    <!-- TABS ADMIN -->
+    <div class="flex items-center gap-1 mb-6 border-b border-white/5 overflow-x-auto font-mono text-[11px] md:text-xs">
+        <button onclick="switchAdminTab('citas')" data-tab="citas" class="admin-tab-btn active px-4 py-3 text-muted hover:text-bone flex items-center gap-2">
+            <i class="fa-solid fa-list-check"></i> Citas de Clientes
+        </button>
+        <button onclick="switchAdminTab('config')" data-tab="config" class="admin-tab-btn px-4 py-3 text-muted hover:text-bone flex items-center gap-2">
+            <i class="fa-regular fa-clock"></i> Disponibilidad Semanal
+        </button>
+        <button onclick="switchAdminTab('bloqueos')" data-tab="bloqueos" class="admin-tab-btn px-4 py-3 text-muted hover:text-bone flex items-center gap-2">
+            <i class="fa-solid fa-plane-departure"></i> Vacaciones & Bloqueos
+        </button>
+    </div>
+
+    <!-- TAB 1: LISTADO DE CITAS ESTILO APP -->
+    <div id="tab-citas" class="admin-tab-panel active">
+        <div class="app-card p-4 md:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-white/5">
+                <h3 class="font-serif text-base text-bone flex items-center gap-2">
+                    <i class="fa-solid fa-list text-accent"></i> Registro de Citas
+                </h3>
+                <div class="flex items-center gap-2">
+                    <input type="month" id="admin-month-filter" onchange="renderAdminBookingsTable()"
+                           class="bg-studio border border-white/10 rounded-lg px-2.5 py-1.5 text-bone text-xs font-sans focus:outline-none focus:border-accent">
+                    <button onclick="clearMonthFilter()" class="text-[10px] bg-white/5 text-muted hover:text-bone border border-white/10 px-2 py-1.5 rounded">Todos</button>
+                </div>
+            </div>
+
+            <div id="admin-bookings-list" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <!-- TAB 2: CONFIGURADOR DE HORARIOS SEMANAL APP -->
+    <div id="tab-config" class="admin-tab-panel">
+        <div class="app-card p-4 md:p-6">
+            <h3 class="font-serif text-base text-bone flex items-center gap-2 pb-3 border-b border-white/5 mb-4">
+                <i class="fa-regular fa-clock text-accent"></i> Configuración de Horarios por Semana
+            </h3>
+            
+            <div class="flex gap-3 mb-5">
+                <div class="w-1/2">
+                    <label class="block text-[9px] uppercase text-muted font-semibold mb-1">Mes</label>
+                    <input type="month" id="admin-week-month" onchange="loadAndRenderWeeklySchedule()"
+                           class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs focus:outline-none focus:border-accent">
+                </div>
+                <div class="w-1/2">
+                    <label class="block text-[9px] uppercase text-muted font-semibold mb-1">Semana del Mes</label>
+                    <select id="admin-week-number" onchange="loadAndRenderWeeklySchedule()"
+                            class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs focus:outline-none focus:border-accent cursor-pointer">
+                        <option value="1">Semana 1</option>
+                        <option value="2">Semana 2</option>
+                        <option value="3">Semana 3</option>
+                        <option value="4">Semana 4</option>
+                        <option value="5">Semana 5</option>
+                    </select>
+                </div>
             </div>
 
             <div id="weekly-days-editor-container" class="space-y-3"></div>
 
-            <button onclick="window.saveCurrentWeekSchedule()" class="w-full bg-barber-gold text-black font-bold text-xs tracking-widest uppercase py-3 rounded-lg mt-4">
-                Guardar Horarios
+            <button onclick="saveCurrentWeekSchedule()" class="btn-primary-action w-full py-3.5 rounded-xl text-xs uppercase tracking-widest mt-6">
+                Guardar Horarios de la Semana
             </button>
         </div>
-
     </div>
 
-    <script>
-        const DONATO_SUPABASE_URL = 'https://skmeijhahrdovivtqpgo.supabase.co';
-        const DONATO_SUPABASE_ANON = 'sb_publishable__qSerIH-2GFNLmx8kOIrHg_GeYy7kib';
-        const donatoSupabase = supabase.createClient(DONATO_SUPABASE_URL, DONATO_SUPABASE_ANON);
+    <!-- TAB 3: VACACIONES Y BLOQUEOS -->
+    <div id="tab-bloqueos" class="admin-tab-panel">
+        <div class="app-card p-4 md:p-6 space-y-4 max-w-xl mx-auto">
+            <h3 class="font-serif text-base text-bone flex items-center justify-between border-b border-white/5 pb-3">
+                <span>Bloqueo de Fechas / Vacaciones</span>
+                <i class="fa-solid fa-plane-departure text-accent"></i>
+            </h3>
+            <div class="space-y-3 font-mono text-xs">
+                <div>
+                    <label class="block text-[9px] text-muted uppercase mb-1">Desde</label>
+                    <input type="date" id="admin-block-start-date" class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs">
+                </div>
+                <div>
+                    <label class="block text-[9px] text-muted uppercase mb-1">Hasta</label>
+                    <input type="date" id="admin-block-end-date" class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs">
+                </div>
+                <div>
+                    <label class="block text-[9px] text-muted uppercase mb-1">Motivo</label>
+                    <input type="text" id="admin-block-reason" placeholder="Ej: Vacaciones" class="w-full bg-studio border border-white/10 rounded-xl px-3 py-2 text-bone text-xs">
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="toggleBlockDateRange(true)" class="flex-1 border border-danger/40 bg-danger/10 text-danger text-xs py-2.5 rounded-xl font-bold">Bloquear</button>
+                    <button onclick="toggleBlockDateRange(false)" class="flex-1 border border-white/10 bg-studio text-bone text-xs py-2.5 rounded-xl font-bold">Liberar</button>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-white/5">
+                <p class="text-[9px] font-mono text-muted uppercase mb-2">Rangos Bloqueados</p>
+                <div id="blocked-ranges-list" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        const ADMIN_EMAIL = "donato@gmail.com";
-        const ADMIN_PASS = "donato2026";
+<!-- MODAL CONFIRMACIÓN GENÉRICO -->
+<div id="confirm-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+    <div class="action-card rounded-2xl p-5 md:p-7 max-w-xs w-full text-center shadow-2xl border border-white/10">
+        <div class="text-accent text-2xl mb-2"><i class="fa-solid fa-circle-question"></i></div>
+        <h3 class="font-serif text-lg text-bone mb-1">Confirmar Acción</h3>
+        <p id="confirm-modal-message" class="text-[11px] text-muted mb-5 leading-relaxed font-mono">¿Estás seguro?</p>
+        <div class="flex gap-2 font-mono text-xs">
+            <button onclick="closeConfirmModal()" class="flex-1 bg-white/5 text-bone py-2 rounded-xl border border-white/10">Cancelar</button>
+            <button onclick="acceptConfirmModal()" class="flex-1 bg-accent text-black font-bold py-2 rounded-xl">Confirmar</button>
+        </div>
+    </div>
+</div>
 
-        let config = { weekCustomSchedules: {}, dateExceptions: {}, blockedDates: [] };
-        let bookings = [];
-        let currentUser = JSON.parse(localStorage.getItem('donato_app_user')) || null;
-        let currentEditingWeekState = {};
+<!-- JAVASCRIPT FULL-STACK UNIFICADO -->
+<script>
+    // ─────────────────────────────────────────────────────────────────
+    // EMAILJS & GOOGLE CALENDAR APPS SCRIPT
+    // ─────────────────────────────────────────────────────────────────
+    const EMAILJS_PUBLIC_KEY  = "GTOGrSQ2Rt00WA2j-";
+    const EMAILJS_SERVICE_ID  = "service_hej9twt";
+    const EMAILJS_TEMP_BOOK   = "template_34kk00i";
+    const EMAILJS_TEMP_CANCEL = "template_l9yyqwb";
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            const today = new Date().toISOString().split('T')[0];
-            const currentMonth = today.slice(0, 7);
-            
-            document.getElementById('admin-month-filter').value = currentMonth;
-            document.getElementById('admin-week-month').value = currentMonth;
+    const GOOGLE_SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbyXPDa8FIhiLFpKJd8ZulRBo6tvC5bVdy10wiVKKs0pAiOQ2JdCQUlN_5bH8fNKwlGbgg/exec";
 
-            if (currentUser && currentUser.email === ADMIN_EMAIL) {
-                showDashboard();
-                await loadDataAndRender();
-                initRealtimeNotifications();
-            } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-                document.getElementById('login-screen').classList.add('flex');
+    if (typeof emailjs !== 'undefined') {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+    }
+
+    async function sendNotificationEmail(type, booking) {
+        if (typeof emailjs === 'undefined') return;
+
+        const templateId = type === 'reserva' ? EMAILJS_TEMP_BOOK : EMAILJS_TEMP_CANCEL;
+        const templateParams = {
+            cliente_nombre: booking.clientName,
+            cliente_contacto: booking.clientEmail,
+            cliente_email: booking.clientEmail,
+            to_email: booking.clientEmail,
+            email: booking.clientEmail,
+            cliente_telefono: booking.clientPhone,
+            fecha: formatDateReadable(booking.date),
+            hora: booking.time,
+            servicio: booking.service || 'Corte de Cabello',
+            estado: type === 'reserva' ? 'CONFIRMADA' : 'CANCELADA',
+            barbero: 'Nico Donatostudio'
+        };
+
+        try {
+            const res = await emailjs.send(EMAILJS_SERVICE_ID, templateId, templateParams);
+            console.log(`✅ Correo enviado al cliente (${res.status})`);
+        } catch (error) {
+            console.error(`❌ Error enviando correo EmailJS:`, error);
+        }
+    }
+
+    async function syncGoogleCalendar(action, booking) {
+        if (!GOOGLE_SCRIPT_URL) return;
+
+        try {
+            await fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: action,
+                    id: booking.id,
+                    date: booking.date,
+                    time: booking.time,
+                    clientName: booking.clientName,
+                    clientEmail: booking.clientEmail,
+                    clientPhone: booking.clientPhone,
+                    service: booking.service,
+                    notes: booking.notes
+                })
+            });
+            console.log(`✅ Evento ${action === 'create' ? 'añadido' : 'eliminado'} en Google Calendar`);
+        } catch (err) {
+            console.error("❌ Error con Google Calendar Webhook:", err);
+        }
+    }
+
+    // EXPORTADOR A CALENDARIO DE APPLE (.ICS)
+    window.addToAppleCalendar = function(clientName, date, time, service, notes, phone) {
+        const startDate = date.replace(/-/g, '') + 'T' + time.replace(':', '') + '00';
+        const icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'BEGIN:VEVENT',
+            `SUMMARY:Cita Barbería: ${clientName} (${service})`,
+            `DESCRIPTION:Cliente: ${clientName}\\nTeléfono: ${phone}\\nServicio: ${service}\\nNotas: ${notes || 'Ninguna'}`,
+            `DTSTART:${startDate}`,
+            'LOCATION:Río Lontué 624, Nonguén, Concepción, Chile',
+            'END:VEVENT',
+            'END:VCALENDAR'
+        ].join('\n');
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', `Cita-${clientName.replace(/\s+/g, '_')}.ics`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // ─────────────────────────────────────────────────────────────────
+    // MOTOR DE SUPABASE
+    // ─────────────────────────────────────────────────────────────────
+    const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    const SUPABASE_URL = 'https://skmeijhahrdovivtqpgo.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable__qSerIH-2GFNLmx8kOIrHg_GeYy7kib';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ADMIN_EMAIL = "donato@gmail.com";
+    const ADMIN_PASS = "donato2026";
+
+    let config = { weekCustomSchedules: {}, daySchedules: {}, blockedDates: [], blockedReasons: {} };
+    let bookings = [];
+    let currentUser = JSON.parse(localStorage.getItem('barber_user')) || null;
+
+    let selectedClientDate = "";
+    let selectedClientSlot = "";
+    let clientCalendarViewDate = new Date();
+    let adminCalendarViewDate = new Date();
+    let selectedAdminDate = "";
+    let isLoadingData = false;
+    let configDirty = false;
+    let currentEditingWeekState = {};
+
+    function getLocalDateString(d = new Date()) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    let loadingScreenHidden = false;
+    function hideLoadingScreen() {
+        if (loadingScreenHidden) return;
+        loadingScreenHidden = true;
+        const loader = document.getElementById('pantalla-carga');
+        if (loader) loader.remove();
+    }
+
+    function isEditingProtectedAdminArea() {
+        const active = document.activeElement;
+        if (!active) return false;
+        const tag = active.tagName;
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return true;
+        return !!(active.closest && (active.closest('#admin-bookings-list') || active.closest('#weekly-days-editor-container')));
+    }
+
+    function renderAllViewsSilent() {
+        renderClientCalendar();
+        renderClientSlots();
+        const adminContainer = document.getElementById('admin-container');
+        if (adminContainer && !adminContainer.classList.contains('hidden')) {
+            renderBlockedRangesList();
+            if (!isEditingProtectedAdminArea()) {
+                renderAdminBookingsTable();
+                loadAndRenderWeeklySchedule();
             }
+        }
+        updateAuthUI();
+    }
+
+    function openClientManageModal() {
+        const modal = document.getElementById('client-manage-modal');
+        if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    }
+    function closeClientManageModal() {
+        const modal = document.getElementById('client-manage-modal');
+        if (modal) { modal.classList.remove('flex'); modal.classList.add('hidden'); }
+    }
+
+    function searchClientBookings(e) {
+        e.preventDefault();
+        const inputVal = document.getElementById('client-search-input').value.trim().toLowerCase().replace('@', '');
+        const container = document.getElementById('client-bookings-results');
+        if (!container) return;
+        container.innerHTML = "";
+
+        const userBookings = bookings.filter(b => {
+            const emailMatch = b.clientEmail && b.clientEmail.toLowerCase().includes(inputVal);
+            const notesMatch = b.notes && b.notes.toLowerCase().includes(inputVal);
+            const phoneMatch = b.clientPhone && b.clientPhone.toLowerCase().includes(inputVal);
+            return (emailMatch || notesMatch || phoneMatch) && b.status !== 'Cancelada';
         });
 
-        // NOTIFICACIONES EN VIVO
-        function initRealtimeNotifications() {
-            donatoSupabase
+        if (userBookings.length === 0) {
+            container.innerHTML = `<p class="text-xs text-muted italic text-center py-2">No tienes citas activas registradas.</p>`;
+            return;
+        }
+
+        userBookings.forEach(b => {
+            const card = document.createElement('div');
+            card.className = "bg-studio/80 border border-white/10 rounded-xl p-3 flex justify-between items-center";
+            card.innerHTML = `
+                <div>
+                    <div class="font-mono text-xs font-semibold text-bone">${formatDateReadable(b.date)} - ${b.time}</div>
+                    <div class="text-[10px] text-accent">${b.clientName}</div>
+                    <div class="text-[9px] text-emerald-400 font-mono">${b.status}</div>
+                </div>
+                <button onclick="cancelClientBooking('${b.id}')" class="bg-danger/20 border border-danger/30 text-danger text-[10px] px-3 py-1.5 rounded-lg hover:bg-danger/40 transition">
+                    Cancelar Cita
+                </button>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function cancelClientBooking(id) {
+        showConfirm("¿Deseas cancelar tu cita? Se liberará el horario.", async () => {
+            const item = bookings.find(b => b.id === id);
+            if (item) {
+                item.status = 'Cancelada';
+                await saveBookingToSupabase(item);
+                sendNotificationEmail('cancelacion', item);
+                syncGoogleCalendar('cancel', item);
+            }
+            await loadDataFromSupabase(false);
+            renderAllViews();
+            closeClientManageModal();
+            showToast("Tu cita ha sido cancelada.", "success");
+        });
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<i class="fa-solid fa-circle-info text-accent"></i><span class="flex-1">${message}</span>`;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('toast-show'));
+        setTimeout(() => { toast.classList.remove('toast-show'); setTimeout(() => toast.remove(), 400); }, 3800);
+    }
+
+    let pendingConfirmAction = null;
+    function showConfirm(message, onAccept) {
+        document.getElementById('confirm-modal-message').innerText = message;
+        pendingConfirmAction = onAccept;
+        document.getElementById('confirm-modal').classList.remove('hidden');
+        document.getElementById('confirm-modal').classList.add('flex');
+    }
+    function closeConfirmModal() {
+        document.getElementById('confirm-modal').classList.remove('flex');
+        document.getElementById('confirm-modal').classList.add('hidden');
+        pendingConfirmAction = null;
+    }
+    function acceptConfirmModal() {
+        const action = pendingConfirmAction;
+        closeConfirmModal();
+        if (typeof action === 'function') action();
+    }
+
+    function setSyncStatus(status) {
+        const statusText = document.getElementById('sync-status-text');
+        const headerEl = document.getElementById('sync-status-header');
+        const adminEl = document.getElementById('admin-sync-status');
+        const clientEl = document.getElementById('client-sync-status');
+
+        if (statusText) statusText.innerText = status === 'syncing' ? 'Sincronizando...' : 'Sincronizado';
+        [headerEl, adminEl, clientEl].forEach(el => {
+            if (el) {
+                el.className = `sync-indicator ${status === 'syncing' ? 'syncing' : ''}`;
+                const icon = el.querySelector('i');
+                if (icon) icon.className = status === 'syncing' ? 'fa-solid fa-cloud fa-spin' : 'fa-solid fa-cloud';
+            }
+        });
+    }
+
+    async function loadDataFromSupabase(showLoading = false) {
+        if (isLoadingData) return;
+        isLoadingData = true;
+        if (showLoading) setSyncStatus('syncing');
+
+        try {
+            const { data: settingsRows } = await supabaseClient.from('donato_settings').select('*').eq('key', 'main_config');
+            if (!configDirty && settingsRows && settingsRows.length > 0) {
+                const loadedConfig = settingsRows[0].value || {};
+                config = {
+                    weekCustomSchedules: loadedConfig.weekCustomSchedules || {},
+                    daySchedules: loadedConfig.daySchedules || {},
+                    blockedDates: loadedConfig.blockedDates || [],
+                    blockedReasons: loadedConfig.blockedReasons || {},
+                };
+            }
+
+            const { data: bookingsData } = await supabaseClient.from('donato_bookings').select('*');
+            if (bookingsData) {
+                bookings = bookingsData.map(b => ({
+                    id: b.id, date: b.date, time: b.time,
+                    clientName: b.client_name, clientEmail: b.client_email, clientPhone: b.client_phone,
+                    service: b.service || 'Corte de Cabello', notes: b.notes || '',
+                    status: b.status || 'Confirmada', createdAt: b.created_at
+                }));
+            }
+            setSyncStatus('synced');
+        } catch (err) { setSyncStatus('error'); }
+        finally { isLoadingData = false; }
+    }
+
+    window.loadDataAndRender = async function() {
+        await loadDataFromSupabase(true);
+        renderAllViews();
+        showToast("Datos actualizados con éxito", "success");
+    };
+
+    async function saveState() {
+        setSyncStatus('syncing');
+        try {
+            const { error } = await supabaseClient.from('donato_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
+            if (error) { setSyncStatus('error'); return false; }
+            configDirty = false; setSyncStatus('synced'); renderAllViews();
+            showToast("Cambios guardados con éxito.", "success");
+            return true;
+        } catch (err) { setSyncStatus('error'); return false; }
+    }
+
+    async function saveBookingToSupabase(b) {
+        try {
+            const payload = {
+                id: b.id, date: b.date, time: b.time,
+                client_name: b.clientName, client_email: b.clientEmail, client_phone: b.clientPhone,
+                service: b.service || 'Corte de Cabello', notes: b.notes || '',
+                status: b.status || 'Confirmada', created_at: b.createdAt || new Date().toISOString()
+            };
+            const { error } = await supabaseClient.from('donato_bookings').upsert(payload, { onConflict: 'id' });
+            return !error;
+        } catch (err) { return false; }
+    }
+
+    async function insertNewBookingAtomic(b) {
+        try {
+            const payload = {
+                id: b.id, date: b.date, time: b.time,
+                client_name: b.clientName, client_email: b.clientEmail, client_phone: b.clientPhone,
+                service: b.service || 'Corte de Cabello', notes: b.notes || '',
+                status: b.status || 'Confirmada', created_at: b.createdAt || new Date().toISOString()
+            };
+            const { error } = await supabaseClient.from('donato_bookings').insert(payload);
+            if (error) {
+                console.error("Error insertando reserva:", error);
+                return { success: false, conflict: false, error };
+            }
+            return { success: true, conflict: false, error: null };
+        } catch (err) { 
+            return { success: false, conflict: false, error: err }; 
+        }
+    }
+
+    async function deleteBookingFromSupabase(id) {
+        try {
+            const { error } = await supabaseClient.from('donato_bookings').delete().eq('id', id);
+            return !error;
+        } catch (err) { return false; }
+    }
+
+    function renderAllViews() {
+        renderClientCalendar(); renderClientSlots();
+        if (!document.getElementById('admin-container').classList.contains('hidden')) { renderAdminDashboard(); }
+        updateAuthUI();
+    }
+
+    function processDirectLogin(e) {
+        e.preventDefault();
+        const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
+        const passInput = document.getElementById('login-password').value;
+
+        if (emailInput === ADMIN_EMAIL.toLowerCase() && passInput === ADMIN_PASS) {
+            currentUser = { email: ADMIN_EMAIL, name: "Donato Admin" };
+            localStorage.setItem('barber_user', JSON.stringify(currentUser));
+            document.getElementById('login-form').reset();
+            updateAuthUI(); showAdminPanel();
+        } else { showToast("Credenciales incorrectas.", "error"); }
+    }
+
+    function logoutAdmin() {
+        currentUser = null; localStorage.removeItem('barber_user');
+        updateAuthUI(); showPublicLanding();
+    }
+
+    function updateAuthUI() {
+        const navSlot = document.getElementById('auth-nav-slot');
+        const mobileLabel = document.getElementById('mobile-admin-label');
+
+        if (currentUser && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+            navSlot.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <button onclick="showAdminPanel()" class="nav-link text-accent flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-check text-xs"></i><span>Panel Admin</span>
+                    </button>
+                    <button onclick="logoutAdmin()" class="text-xs text-muted hover:text-danger" title="Cerrar Sesión"><i class="fa-solid fa-power-off"></i></button>
+                </div>`;
+            if (mobileLabel) mobileLabel.innerText = "Panel Admin (Conectado)";
+        } else {
+            navSlot.innerHTML = `
+                <button onclick="handleAdminNavClick()" id="nav-admin-toggle" class="nav-link text-accent flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-gear text-xs"></i>
+                    <span id="nav-admin-label">Panel Admin</span>
+                </button>`;
+            if (mobileLabel) mobileLabel.innerText = "Panel Admin";
+        }
+    }
+
+    function handleAdminNavClick() {
+        if (currentUser && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) showAdminPanel();
+        else showLoginView();
+    }
+
+    function showPublicLanding() {
+        document.getElementById('landing-container').classList.remove('hidden');
+        document.getElementById('admin-container').classList.add('hidden');
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('public-nav-links').classList.remove('hidden');
+        renderAllViews();
+    }
+
+    function showLoginView() {
+        document.getElementById('landing-container').classList.add('hidden');
+        document.getElementById('admin-container').classList.add('hidden');
+        document.getElementById('login-container').classList.remove('hidden');
+        document.getElementById('public-nav-links').classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showAdminPanel() {
+        if (!currentUser || currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return showLoginView();
+        document.getElementById('landing-container').classList.add('hidden');
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('admin-container').classList.remove('hidden');
+        document.getElementById('public-nav-links').classList.add('hidden');
+        renderAdminDashboard(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function switchAdminTab(tabName) {
+        document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+        document.querySelector(`.admin-tab-btn[data-tab="${tabName}"]`).classList.add('active');
+    }
+
+    // RESOLUCIÓN DE DISPONIBILIDAD PARA EL CLIENTE (UNIFICADA)
+    function getEffectiveScheduleForDate(dateStr) {
+        if (!dateStr) return { active: false, slots: [] };
+        
+        // 1. Fechas bloqueadas
+        if (config.blockedDates && config.blockedDates.includes(dateStr)) {
+            return { active: false, slots: [], blocked: true };
+        }
+        
+        // 2. Horarios por fecha específica
+        if (config.daySchedules && config.daySchedules[dateStr]) {
+            return config.daySchedules[dateStr];
+        }
+
+        // 3. Horarios por configurador semanal App
+        if (config.weekCustomSchedules) {
+            for (let weekKey in config.weekCustomSchedules) {
+                if (config.weekCustomSchedules[weekKey] && config.weekCustomSchedules[weekKey][dateStr]) {
+                    return config.weekCustomSchedules[weekKey][dateStr];
+                }
+            }
+        }
+
+        return { active: false, slots: [] };
+    }
+
+    function getRemainingSlotsForDate(dateStr) {
+        const todayStr = getLocalDateString(new Date());
+        if (dateStr < todayStr) return [];
+
+        const sched = getEffectiveScheduleForDate(dateStr);
+        if (sched.blocked || !sched.active || !sched.slots) return [];
+        let slots = [...sched.slots];
+
+        if (dateStr === todayStr) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMin = now.getMinutes();
+            slots = slots.filter(slot => {
+                const parts = slot.split(':');
+                if (parts.length !== 2) return true;
+                const slotH = parseInt(parts[0], 10);
+                const slotM = parseInt(parts[1], 10);
+                return (slotH > currentHour) || (slotH === currentHour && slotM > currentMin);
+            });
+        }
+        return slots;
+    }
+
+    function isDayFullyBookedOrClosed(dateStr) {
+        const todayStr = getLocalDateString(new Date());
+        if (dateStr < todayStr) return true;
+
+        const sched = getEffectiveScheduleForDate(dateStr);
+        if (sched.blocked || !sched.active) return true;
+        const remainingSlots = getRemainingSlotsForDate(dateStr);
+        if (remainingSlots.length === 0) return true;
+        const availableSlots = remainingSlots.filter(slot => !bookings.some(b => b.date === dateStr && b.time === slot && b.status !== 'Cancelada'));
+        return availableSlots.length === 0;
+    }
+
+    function getDayAvailabilityStatus(dateStr, isPast) {
+        if (isPast) return { status: 'gray' };
+        const sched = getEffectiveScheduleForDate(dateStr);
+        if (sched.blocked || !sched.active || !sched.slots || sched.slots.length === 0) return { status: 'gray' };
+        const remainingSlots = getRemainingSlotsForDate(dateStr);
+        if (remainingSlots.length === 0) return { status: 'gray' };
+
+        const free = remainingSlots.filter(slot => !bookings.some(b => b.date === dateStr && b.time === slot && b.status !== 'Cancelada')).length;
+        if (free === 0) return { status: 'red' };
+        if (free <= 2) return { status: 'yellow' };
+        return { status: 'green' };
+    }
+
+    function calNavigate(delta) {
+        const now = new Date();
+        const minMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const next = new Date(clientCalendarViewDate.getFullYear(), clientCalendarViewDate.getMonth() + delta, 1);
+        if (next < minMonth) return;
+        clientCalendarViewDate = next; renderClientCalendar();
+    }
+
+    function renderClientCalendar() {
+        const grid = document.getElementById('client-calendar-grid');
+        const label = document.getElementById('cal-month-label');
+        if (!grid || !label) return;
+
+        const year = clientCalendarViewDate.getFullYear(); const month = clientCalendarViewDate.getMonth();
+        label.innerText = `${MONTH_NAMES_ES[month]} ${year}`;
+
+        const todayStr = getLocalDateString(new Date());
+        const firstOfMonth = new Date(year, month, 1);
+        let leadingBlank = firstOfMonth.getDay() - 1; if (leadingBlank < 0) leadingBlank = 6;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+
+        grid.innerHTML = "";
+        for (let i = 0; i < leadingBlank; i++) {
+            const empty = document.createElement('div'); empty.className = 'cal-day cal-empty'; grid.appendChild(empty);
+        }
+
+        for (let day = 1; day <= lastDay; day++) {
+            const cellDate = new Date(year, month, day); const dateStr = getLocalDateString(cellDate);
+            const isPast = dateStr < todayStr; const info = getDayAvailabilityStatus(dateStr, isPast);
+            const isSelectable = !isPast && info.status !== 'gray' && info.status !== 'red';
+
+            const cell = document.createElement('div'); cell.className = 'cal-day';
+            if (dateStr === todayStr) cell.classList.add('cal-today');
+            if (dateStr === selectedClientDate) cell.classList.add('cal-selected');
+            if (!isSelectable) cell.classList.add('cal-disabled');
+
+            cell.innerHTML = `<span>${day}</span><span class="cal-dot cal-dot-${info.status}"></span>`;
+            if (isSelectable) { cell.onclick = () => selectClientDate(dateStr); }
+            grid.appendChild(cell);
+        }
+    }
+
+    function selectClientDate(dateStr) {
+        const todayStr = getLocalDateString(new Date());
+        if (dateStr < todayStr || isDayFullyBookedOrClosed(dateStr)) return showToast("Fecha pasada o sin disponibilidad.", "error");
+        selectedClientDate = dateStr; selectedClientSlot = "";
+        document.getElementById('summary-date').innerText = formatDateReadable(selectedClientDate);
+        document.getElementById('summary-time').innerText = "--";
+        renderClientCalendar(); renderClientSlots(); validateBookingForm();
+    }
+
+    function renderClientSlots() {
+        const container = document.getElementById('client-slots-container');
+        if (!container) return; container.innerHTML = "";
+
+        if (!selectedClientDate) {
+            container.innerHTML = `<p class="col-span-full text-center text-muted text-xs py-4">Selecciona una fecha activa en el calendario</p>`;
+            return;
+        }
+
+        const remainingSlots = getRemainingSlotsForDate(selectedClientDate);
+        if (isDayFullyBookedOrClosed(selectedClientDate)) {
+            container.innerHTML = `<p class="col-span-full text-xs text-danger italic py-3">Este día no cuenta con cupos disponibles.</p>`;
+            return;
+        }
+
+        remainingSlots.forEach(slot => {
+            const isBooked = bookings.some(b => b.date === selectedClientDate && b.time === slot && b.status !== 'Cancelada');
+            const btn = document.createElement('button'); btn.type = 'button';
+            btn.className = `slot-btn py-2 px-2.5 rounded-xl text-[11px] font-mono text-center ${selectedClientSlot === slot ? 'selected' : 'text-bone'}`;
+            btn.disabled = isBooked; btn.innerText = isBooked ? `${slot} (Ocupado)` : slot;
+
+            if (!isBooked) {
+                btn.onclick = () => {
+                    selectedClientSlot = slot;
+                    document.getElementById('summary-time').innerText = slot;
+                    renderClientSlots(); validateBookingForm();
+                };
+            }
+            container.appendChild(btn);
+        });
+    }
+
+    function validateBookingForm() {
+        const name = document.getElementById('client-name').value;
+        const email = document.getElementById('client-email').value;
+        const phone = document.getElementById('client-phone').value;
+        const submitBtn = document.getElementById('btn-submit-booking');
+
+        if (selectedClientDate && selectedClientSlot && name && email && phone && !isDayFullyBookedOrClosed(selectedClientDate)) {
+            submitBtn.disabled = false;
+        } else { submitBtn.disabled = true; }
+    }
+
+    ['client-name', 'client-email', 'client-phone'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', validateBookingForm);
+    });
+
+    async function processClientBooking(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('btn-submit-booking');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> <span>Confirmando reserva...</span>';
+
+        const { data: existing } = await supabaseClient.from('donato_bookings').select('id')
+            .eq('date', selectedClientDate).eq('time', selectedClientSlot).neq('status', 'Cancelada');
+
+        if (existing && existing.length > 0) {
+            submitBtn.disabled = false; submitBtn.innerHTML = originalText;
+            return showToast("Lo sentimos, alguien reservó este horario hace un instante.", "error");
+        }
+
+        const serviceVal = document.getElementById('client-service') ? document.getElementById('client-service').value : 'Corte de Cabello';
+        const instagramInput = document.getElementById('client-instagram') ? document.getElementById('client-instagram').value.trim() : '';
+        const baseNotes = document.getElementById('client-notes').value || '';
+        const fullNotes = (instagramInput ? `IG: ${instagramInput} | ` : '') + baseNotes;
+
+        const newBooking = {
+            id: 'DON-' + Date.now().toString().slice(-5) + '-' + Math.random().toString(36).slice(2, 6),
+            date: selectedClientDate, 
+            time: selectedClientSlot,
+            clientName: document.getElementById('client-name').value,
+            clientEmail: document.getElementById('client-email').value,
+            clientPhone: document.getElementById('client-phone').value,
+            service: serviceVal,
+            notes: fullNotes,
+            status: 'Confirmada', 
+            createdAt: new Date().toISOString()
+        };
+
+        const result = await insertNewBookingAtomic(newBooking);
+        submitBtn.disabled = false; submitBtn.innerHTML = originalText;
+
+        if (!result.success) {
+            const errorMsg = result.error?.message || "Error desconocido";
+            showToast("Error: " + errorMsg, "error");
+            await loadDataFromSupabase(false); 
+            renderAllViews(); 
+            return;
+        }
+
+        bookings.push(newBooking); renderAllViews();
+        sendNotificationEmail('reserva', newBooking);
+        syncGoogleCalendar('create', newBooking);
+
+        const calButtons = document.getElementById('calendar-add-buttons');
+        if (calButtons) {
+            const gLink = getGoogleCalendarUrl(newBooking);
+            calButtons.innerHTML = `
+                <a href="${gLink}" target="_blank" class="w-full bg-black border border-white/10 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-white/5">
+                    <i class="fa-brands fa-google text-accent"></i> Añadir a Google Calendar
+                </a>
+            `;
+        }
+
+        document.getElementById('success-modal').classList.remove('hidden');
+        document.getElementById('success-modal').classList.add('flex');
+    }
+
+    function closeSuccessModal() {
+        document.getElementById('success-modal').classList.remove('flex');
+        document.getElementById('success-modal').classList.add('hidden');
+        document.getElementById('booking-form').reset();
+        selectedClientSlot = ""; renderClientSlots(); validateBookingForm();
+    }
+
+    function renderAdminDashboard() { 
+        renderBlockedRangesList(); 
+        renderAdminBookingsTable(); 
+        loadAndRenderWeeklySchedule();
+    }
+
+    // LISTADO DE CITAS ESTILO APP
+    function renderAdminBookingsTable() {
+        const container = document.getElementById('admin-bookings-list');
+        const stat = document.getElementById('stat-bookings');
+        const monthFilter = document.getElementById('admin-month-filter').value;
+        if (!container) return;
+        container.innerHTML = "";
+
+        let filtered = bookings.filter(b => b.date && b.date.startsWith(monthFilter));
+        if (stat) stat.innerText = filtered.length;
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<p class="text-center text-muted text-xs py-6 italic">No hay citas registradas en este mes.</p>`;
+            return;
+        }
+
+        filtered.sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
+
+        filtered.forEach(b => {
+            const card = document.createElement('div');
+            card.className = "bg-studio/90 border border-white/10 rounded-2xl p-4 relative shadow-xl";
+            
+            const fechaFormat = formatDateReadable(b.date);
+            const cleanPhone = b.clientPhone ? b.clientPhone.replace(/\s+/g, '').replace('+', '') : '';
+
+            let statusColor = "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";
+            if (b.status === 'Cancelada') statusColor = "text-danger border-danger/30 bg-danger/10";
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 class="font-bold text-bone text-base">${b.clientName}</h4>
+                        <p class="text-accent font-mono text-xs font-semibold">${fechaFormat} a las ${b.time} hrs</p>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[9px] font-mono uppercase px-2 py-0.5 rounded border ${statusColor}">${b.status}</span>
+                        <button onclick="window.addToAppleCalendar('${b.clientName}', '${b.date}', '${b.time}', '${b.service || 'Corte'}', '${b.notes || ''}', '${b.clientPhone}')" title="Añadir a Apple Calendar" class="bg-accent/20 text-accent p-2 rounded-lg text-xs hover:bg-accent/30">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                        </button>
+                        <button onclick="deleteBooking('${b.id}')" class="text-muted hover:text-danger p-2 text-xs">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-xs text-muted space-y-1.5 mt-3 pt-2 border-t border-white/5">
+                    <p class="flex items-center gap-2"><i class="fa-solid fa-phone text-accent w-4 text-center"></i> <a href="https://wa.me/${cleanPhone}" target="_blank" class="text-bone underline font-mono">${b.clientPhone}</a></p>
+                    <p class="flex items-center gap-2"><i class="fa-solid fa-envelope text-accent w-4 text-center"></i> <span class="text-bone font-mono text-[11px]">${b.clientEmail}</span></p>
+                    <p class="flex items-center gap-2"><i class="fa-solid fa-scissors text-accent w-4 text-center"></i> ${b.service || 'Corte Standard'}</p>
+                    ${b.notes ? `<p class="italic text-muted mt-2 bg-studio p-2 rounded.xl border border-white/5 font-mono text-[11px]">"${b.notes}"</p>` : ''}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // CONFIGURADOR DE HORARIOS SEMANAL APP
+    function getDatesForWeek(yearMonth, weekNum) {
+        const [year, month] = yearMonth.split('-').map(Number);
+        let firstDay = new Date(year, month - 1, 1);
+        let dayOfWeek = firstDay.getDay();
+        let diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+        firstDay.setDate(firstDay.getDate() + diffToMonday);
+
+        let weekStart = new Date(firstDay);
+        weekStart.setDate(weekStart.getDate() + (weekNum - 1) * 7);
+
+        let dates = [];
+        for (let i = 0; i < 7; i++) {
+            let d = new Date(weekStart);
+            d.setDate(d.getDate() + i);
+            dates.push({ 
+                dateStr: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+                dayName: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d.getDay()],
+                dayNum: d.getDate()
+            });
+        }
+        return dates;
+    }
+
+    window.loadAndRenderWeeklySchedule = function() {
+        const monthVal = document.getElementById('admin-week-month').value;
+        const weekVal = parseInt(document.getElementById('admin-week-number').value);
+        if (!monthVal) return;
+
+        const weekKey = `${monthVal}-W${weekVal}`;
+        if (!config.weekCustomSchedules) config.weekCustomSchedules = {};
+
+        currentEditingWeekState = JSON.parse(JSON.stringify(config.weekCustomSchedules[weekKey] || {}));
+        window.paintWeeklyScheduleUI();
+    };
+
+    window.paintWeeklyScheduleUI = function() {
+        const container = document.getElementById('weekly-days-editor-container');
+        const monthVal = document.getElementById('admin-week-month').value;
+        const weekVal = parseInt(document.getElementById('admin-week-number').value);
+        if (!container) return;
+        container.innerHTML = "";
+
+        const weekDates = getDatesForWeek(monthVal, weekVal);
+
+        weekDates.forEach(({ dateStr, dayName, dayNum }) => {
+            if (!currentEditingWeekState[dateStr]) currentEditingWeekState[dateStr] = { active: false, slots: [] };
+            const dayState = currentEditingWeekState[dateStr];
+
+            const card = document.createElement('div');
+            card.className = "bg-studio/80 border border-white/10 rounded-xl p-3";
+
+            let slotsHtml = dayState.slots.map((s, idx) => `
+                <span class="inline-flex items-center gap-1 bg-panel border border-white/10 text-bone text-xs font-mono px-2 py-1 rounded-lg">
+                    ${s} <button onclick="window.removeSlot('${dateStr}', ${idx})" class="text-danger font-bold ml-1">×</button>
+                </span>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-sm text-bone">${dayName} ${dayNum} <span class="text-[10px] text-muted font-normal font-mono">(${dateStr})</span></span>
+                    <div class="flex gap-2">
+                        <button onclick="window.addSlot('${dateStr}')" class="text-xs bg-panel border border-white/10 text-bone hover:border-accent px-3 py-1 rounded-lg">+ Hora</button>
+                        <button onclick="window.toggleDay('${dateStr}')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg ${dayState.active ? 'bg-accent text-black' : 'text-muted border border-white/10'}">
+                            ${dayState.active ? 'ACTIVO' : 'INACTIVO'}
+                        </button>
+                    </div>
+                </div>
+                ${dayState.active ? `<div class="flex flex-wrap gap-1.5 mt-3 pt-2 border-t border-white/5">${slotsHtml || '<span class="text-[11px] text-muted italic">Sin horas agregadas</span>'}</div>` : ''}
+            `;
+            container.appendChild(card);
+        });
+    };
+
+    window.toggleDay = function(dateStr) {
+        currentEditingWeekState[dateStr].active = !currentEditingWeekState[dateStr].active;
+        window.paintWeeklyScheduleUI();
+    };
+
+    window.addSlot = function(dateStr) {
+        currentEditingWeekState[dateStr].active = true;
+        const time = prompt(`Horario para el ${dateStr} (Ej: 15:30):`);
+        if (time && time.trim() !== "" && !currentEditingWeekState[dateStr].slots.includes(time.trim())) {
+            currentEditingWeekState[dateStr].slots.push(time.trim());
+            currentEditingWeekState[dateStr].slots.sort();
+        }
+        window.paintWeeklyScheduleUI();
+    };
+
+    window.removeSlot = function(dateStr, idx) {
+        currentEditingWeekState[dateStr].slots.splice(idx, 1);
+        window.paintWeeklyScheduleUI();
+    };
+
+    window.saveCurrentWeekSchedule = async function() {
+        const monthVal = document.getElementById('admin-week-month').value;
+        const weekVal = parseInt(document.getElementById('admin-week-number').value);
+        const weekKey = `${monthVal}-W${weekVal}`;
+        
+        if (!config.weekCustomSchedules) config.weekCustomSchedules = {};
+        config.weekCustomSchedules[weekKey] = JSON.parse(JSON.stringify(currentEditingWeekState));
+        
+        const success = await saveState();
+        if (success) {
+            showToast(`Semana ${weekVal} guardada con éxito.`, "success");
+        }
+    };
+
+    async function toggleBlockDateRange(block) {
+        const start = document.getElementById('admin-block-start-date').value;
+        const end = document.getElementById('admin-block-end-date').value || start;
+        const reason = document.getElementById('admin-block-reason').value.trim();
+        if (!start) return showToast("Selecciona fecha inicial.", "error");
+
+        let currentD = new Date(start + 'T00:00:00'); const endD = new Date(end + 'T00:00:00');
+        if (!config.blockedDates) config.blockedDates = [];
+        if (!config.blockedReasons) config.blockedReasons = {};
+
+        while (currentD <= endD) {
+            const ds = getLocalDateString(currentD);
+            if (block) {
+                if (!config.blockedDates.includes(ds)) config.blockedDates.push(ds);
+                if (reason) config.blockedReasons[ds] = reason;
+            } else {
+                config.blockedDates = config.blockedDates.filter(d => d !== ds);
+                delete config.blockedReasons[ds];
+            }
+            currentD.setDate(currentD.getDate() + 1);
+        }
+        await saveState(); renderAllViews();
+    }
+
+    function renderBlockedRangesList() {
+        const container = document.getElementById('blocked-ranges-list');
+        if (!container) return;
+        if (!config.blockedDates || config.blockedDates.length === 0) {
+            container.innerHTML = `<p class="text-[10px] text-muted italic">No hay fechas bloqueadas.</p>`; return;
+        }
+        container.innerHTML = config.blockedDates.map(d => `
+            <div class="flex items-center justify-between bg-studio p-2 rounded border border-white/5 text-xs font-mono">
+                <span>${formatDateReadable(d)}</span>
+                <span class="text-muted text-[10px]">${config.blockedReasons[d] || 'Bloqueado'}</span>
+            </div>
+        `).join('');
+    }
+
+    function getGoogleCalendarUrl(b) {
+        const title = encodeURIComponent(`Cita Barbería: ${b.clientName}`);
+        const details = encodeURIComponent(`Notas/Servicio: ${b.notes || b.service || 'Sin notas'}\nEmail: ${b.clientEmail}\nTeléfono: ${b.clientPhone}`);
+        const location = encodeURIComponent("Río Lontué 624, Nonguén, Concepción, Chile");
+        const fechaLimpia = b.date.replace(/-/g, '');
+        const horaLimpia = b.time.replace(':', '') + '00';
+        const fechaInicio = `${fechaLimpia}T${horaLimpia}`;
+        return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}&dates=${fechaInicio}/${fechaInicio}`;
+    }
+
+    function clearMonthFilter() {
+        document.getElementById('admin-month-filter').value = ""; renderAdminBookingsTable();
+    }
+
+    async function updateBookingStatus(id, newStatus) {
+        const item = bookings.find(b => b.id === id);
+        if (!item) return;
+        item.status = newStatus; renderAdminBookingsTable();
+        await saveBookingToSupabase(item); renderAllViews();
+        if (newStatus === 'Cancelada') {
+            sendNotificationEmail('cancelacion', item);
+            syncGoogleCalendar('cancel', item);
+        }
+    }
+
+    function deleteBooking(id) {
+        showConfirm("¿Eliminar cita definitivamente?", async () => {
+            const item = bookings.find(b => b.id === id);
+            bookings = bookings.filter(b => b.id !== id);
+            await deleteBookingFromSupabase(id);
+            if (item) syncGoogleCalendar('cancel', item);
+            renderAdminBookingsTable(); renderAllViews();
+            showToast("Cita eliminada.", "success");
+        });
+    }
+
+    function formatDateReadable(dateStr) {
+        if (!dateStr) return "--";
+        const parts = dateStr.split('-'); return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    function toggleMobileMenu() {
+        const menu = document.getElementById('mobileMenu');
+        menu.classList.toggle('hidden'); menu.classList.toggle('flex');
+    }
+
+    // NOTIFICACIÓN EN TIEMPO REAL
+    function initRealtimeNotifications() {
+        try {
+            supabaseClient
                 .channel('admin-bookings-channel')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donato_bookings' }, payload => {
                     const newB = payload.new;
-                    alert(`🔔 ¡NUEVA RESERVA!\nCliente: ${newB.client_name}\nFecha: ${newB.date} (${newB.time})\nServicio: ${newB.service}`);
+                    alert(`🔔 ¡NUEVA RESERVA!\nCliente: ${newB.client_name}\nFecha: ${formatDateReadable(newB.date)} (${newB.time})\nServicio: ${newB.service}`);
                     loadDataAndRender();
                 })
                 .subscribe();
-        }
+        } catch (e) {}
+    }
 
-        window.loadDataAndRender = async function() {
+    window.addEventListener('DOMContentLoaded', async () => {
+        const safetyTimer = setTimeout(hideLoadingScreen, 1800);
+        
+        const today = getLocalDateString(new Date());
+        const currentMonth = today.slice(0, 7);
+        
+        document.getElementById('admin-month-filter').value = currentMonth;
+        document.getElementById('admin-week-month').value = currentMonth;
+
+        try { 
+            await loadDataFromSupabase(false); 
+            initRealtimeNotifications();
+        } catch (e) {}
+        
+        clearTimeout(safetyTimer); hideLoadingScreen();
+
+        selectedClientDate = today; selectedAdminDate = today;
+        document.getElementById('summary-date').innerText = formatDateReadable(today);
+
+        updateAuthUI(); renderAllViews();
+
+        setInterval(async () => {
             try {
-                const { data: settingsData } = await donatoSupabase.from('donato_settings').select('value').eq('key', 'main_config').single();
-                if (settingsData && settingsData.value) config = settingsData.value;
-
-                const { data: bookingsData } = await donatoSupabase.from('donato_bookings').select('*');
-                if (bookingsData) {
-                    bookings = bookingsData.map(b => ({
-                        id: b.id, date: b.date, time: b.time, clientName: b.client_name,
-                        clientEmail: b.client_email, clientPhone: b.client_phone, service: b.service, 
-                        notes: b.notes, status: b.status
-                    }));
+                if (!isEditingProtectedAdminArea()) {
+                    await loadDataFromSupabase(false);
+                    renderAllViewsSilent();
                 }
-                
-                renderAdminBookingsTable();
-                loadAndRenderWeeklySchedule();
-            } catch (err) { console.error("Error cargando base de datos:", err); }
-        };
+            } catch (e) {}
+        }, 3000);
+    });
+</script>
 
-        window.processDirectLogin = function(e) {
-            e.preventDefault();
-            const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
-            const passInput = document.getElementById('login-password').value;
-
-            if (emailInput === ADMIN_EMAIL.toLowerCase() && passInput === ADMIN_PASS) {
-                currentUser = { email: ADMIN_EMAIL };
-                localStorage.setItem('donato_app_user', JSON.stringify(currentUser));
-                showDashboard();
-                loadDataAndRender();
-                initRealtimeNotifications();
-            } else {
-                alert("Clave incorrecta.");
-            }
-        };
-
-        window.logoutAdmin = function() {
-            localStorage.removeItem('donato_app_user');
-            currentUser = null;
-            document.getElementById('dashboard-screen').classList.add('hidden');
-            document.getElementById('app-header').classList.add('hidden');
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('login-screen').classList.add('flex');
-        };
-
-        function showDashboard() {
-            document.getElementById('login-screen').classList.remove('flex');
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-header').classList.remove('hidden');
-            document.getElementById('dashboard-screen').classList.remove('hidden');
-        }
-
-        // GENERADOR DE ARCHIVO PARA CALENDARIO DE IPHONE (ICS)
-        window.addToAppleCalendar = function(clientName, date, time, service, notes, phone) {
-            const startDate = date.replace(/-/g, '') + 'T' + time.replace(':', '') + '00';
-            const icsContent = [
-                'BEGIN:VCALENDAR',
-                'VERSION:2.0',
-                'BEGIN:VEVENT',
-                `SUMMARY:Cita Barbería: ${clientName} (${service})`,
-                `DESCRIPTION:Cliente: ${clientName}\\nTeléfono: ${phone}\\nServicio: ${service}\\nNotas: ${notes || 'Ninguna'}`,
-                `DTSTART:${startDate}`,
-                'LOCATION:Río Lontué 624, Nonguén, Concepción, Chile',
-                'END:VEVENT',
-                'END:VCALENDAR'
-            ].join('\n');
-
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.setAttribute('download', `Cita-${clientName.replace(/\s+/g, '_')}.ics`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-
-        /* ----- CITAS MÓVIL ----- */
-        window.renderAdminBookingsTable = function() {
-            const container = document.getElementById('admin-bookings-list');
-            const stat = document.getElementById('stat-bookings');
-            const monthFilter = document.getElementById('admin-month-filter').value;
-            container.innerHTML = "";
-
-            let filtered = bookings.filter(b => b.date && b.date.startsWith(monthFilter));
-            stat.innerText = filtered.length;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-500 text-sm py-4">No hay citas en este mes.</p>`;
-                return;
-            }
-
-            filtered.sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time));
-
-            filtered.forEach(b => {
-                const card = document.createElement('div');
-                card.className = "bg-black border border-gray-800 rounded-xl p-4 relative";
-                
-                const fechaFormat = b.date.split('-').reverse().join('/');
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="font-bold text-white text-base">${b.clientName}</h4>
-                            <p class="text-barber-gold font-mono text-sm">${fechaFormat} a las ${b.time}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="window.addToAppleCalendar('${b.clientName}', '${b.date}', '${b.time}', '${b.service || 'Corte'}', '${b.notes || ''}', '${b.clientPhone}')" title="Añadir al Calendario" class="bg-barber-gold/20 text-barber-gold p-2 rounded-lg text-xs">
-                                <i class="fa-solid fa-calendar-plus"></i>
-                            </button>
-                            <button onclick="window.deleteBooking('${b.id}')" class="text-gray-600 hover:text-danger p-2">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-xs text-gray-400 space-y-1 mt-3">
-                        <p><i class="fa-solid fa-phone w-4 text-center"></i> <a href="https://wa.me/${b.clientPhone.replace(/\s+/g, '').replace('+', '')}" target="_blank" class="text-white underline">${b.clientPhone}</a></p>
-                        <p><i class="fa-solid fa-scissors w-4 text-center"></i> ${b.service || 'Corte Standard'}</p>
-                        ${b.notes ? `<p class="italic text-gray-500 mt-2 bg-gray-900 p-2 rounded">"${b.notes}"</p>` : ''}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        };
-
-        window.deleteBooking = async function(id) {
-            if (confirm("¿Eliminar esta cita?")) {
-                bookings = bookings.filter(b => b.id !== id);
-                renderAdminBookingsTable();
-                await donatoSupabase.from('donato_bookings').delete().eq('id', id);
-            }
-        };
-
-        /* ----- HORARIOS MÓVIL ----- */
-        function getDatesForWeek(yearMonth, weekNum) {
-            const [year, month] = yearMonth.split('-').map(Number);
-            let firstDay = new Date(year, month - 1, 1);
-            let dayOfWeek = firstDay.getDay();
-            let diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-            firstDay.setDate(firstDay.getDate() + diffToMonday);
-
-            let weekStart = new Date(firstDay);
-            weekStart.setDate(weekStart.getDate() + (weekNum - 1) * 7);
-
-            let dates = [];
-            for (let i = 0; i < 7; i++) {
-                let d = new Date(weekStart);
-                d.setDate(d.getDate() + i);
-                dates.push({ 
-                    dateStr: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
-                    dayName: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d.getDay()],
-                    dayNum: d.getDate()
-                });
-            }
-            return dates;
-        }
-
-        window.loadAndRenderWeeklySchedule = function() {
-            const monthVal = document.getElementById('admin-week-month').value;
-            const weekVal = parseInt(document.getElementById('admin-week-number').value);
-            if (!monthVal) return;
-
-            const weekKey = `${monthVal}-W${weekVal}`;
-            if (!config.weekCustomSchedules) config.weekCustomSchedules = {};
-
-            currentEditingWeekState = JSON.parse(JSON.stringify(config.weekCustomSchedules[weekKey] || {}));
-            window.paintWeeklyScheduleUI();
-        };
-
-        window.paintWeeklyScheduleUI = function() {
-            const container = document.getElementById('weekly-days-editor-container');
-            const monthVal = document.getElementById('admin-week-month').value;
-            const weekVal = parseInt(document.getElementById('admin-week-number').value);
-            container.innerHTML = "";
-
-            const weekDates = getDatesForWeek(monthVal, weekVal);
-
-            weekDates.forEach(({ dateStr, dayName, dayNum }) => {
-                if (!currentEditingWeekState[dateStr]) currentEditingWeekState[dateStr] = { active: false, slots: [] };
-                const dayState = currentEditingWeekState[dateStr];
-
-                const card = document.createElement('div');
-                card.className = "bg-black border border-gray-800 rounded-lg p-3";
-
-                let slotsHtml = dayState.slots.map((s, idx) => `
-                    <span class="inline-flex items-center gap-1 bg-gray-900 border border-gray-700 text-[10px] px-2 py-1 rounded">
-                        ${s} <button onclick="window.removeSlot('${dateStr}', ${idx})" class="text-danger font-bold ml-1">×</button>
-                    </span>
-                `).join('');
-
-                card.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-sm">${dayName} ${dayNum}</span>
-                        <div class="flex gap-2">
-                            <button onclick="window.addSlot('${dateStr}')" class="text-xs bg-gray-800 px-3 py-1 rounded">+ Hora</button>
-                            <button onclick="window.toggleDay('${dateStr}')" class="text-[10px] font-bold px-2 py-1 rounded ${dayState.active ? 'bg-barber-gold text-black' : 'text-gray-500 border border-gray-800'}">
-                                ${dayState.active ? 'ACTIVO' : 'INACTIVO'}
-                            </button>
-                        </div>
-                    </div>
-                    ${dayState.active ? `<div class="flex flex-wrap gap-2 mt-3">${slotsHtml}</div>` : ''}
-                `;
-                container.appendChild(card);
-            });
-        };
-
-        window.toggleDay = function(dateStr) {
-            currentEditingWeekState[dateStr].active = !currentEditingWeekState[dateStr].active;
-            window.paintWeeklyScheduleUI();
-        };
-
-        window.addSlot = function(dateStr) {
-            currentEditingWeekState[dateStr].active = true;
-            const time = prompt(`Horario para el ${dateStr} (Ej: 15:30):`);
-            if (time && time.trim() !== "" && !currentEditingWeekState[dateStr].slots.includes(time.trim())) {
-                currentEditingWeekState[dateStr].slots.push(time.trim());
-                currentEditingWeekState[dateStr].slots.sort();
-            }
-            window.paintWeeklyScheduleUI();
-        };
-
-        window.removeSlot = function(dateStr, idx) {
-            currentEditingWeekState[dateStr].slots.splice(idx, 1);
-            window.paintWeeklyScheduleUI();
-        };
-
-        window.saveCurrentWeekSchedule = async function() {
-            const monthVal = document.getElementById('admin-week-month').value;
-            const weekVal = parseInt(document.getElementById('admin-week-number').value);
-            const weekKey = `${monthVal}-W${weekVal}`;
-            
-            config.weekCustomSchedules[weekKey] = JSON.parse(JSON.stringify(currentEditingWeekState));
-            await donatoSupabase.from('donato_settings').upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
-            alert(`Semana ${weekVal} guardada con éxito.`);
-        };
-    </script>
 </body>
 </html>
